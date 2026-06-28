@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useProjects } from "@/lib/projects-context";
 import type { NotebookId, Project } from "@/lib/types";
 import { NOTEBOOK_META } from "@/lib/types";
@@ -7,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { ArrowLeft, CheckCircle2, Circle, Loader2 } from "lucide-react";
 import { CandidatePicker, StringList } from "./notebooks/Shared";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
