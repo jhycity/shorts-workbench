@@ -359,15 +359,25 @@ function AddFormat() {
 }
 
 function FormatAdder({ onAdd }: { onAdd: (n: string, d: string) => void }) {
+  const [name, setName] = useState("");
+  const [desc, setDesc] = useState("");
   return (
-    <FormatAdderInner onAdd={onAdd} />
+    <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_2fr_auto]">
+      <Input placeholder="포맷 이름" value={name} onChange={(e) => setName(e.target.value)} />
+      <Input placeholder="짧은 설명" value={desc} onChange={(e) => setDesc(e.target.value)} />
+      <Button
+        size="sm"
+        disabled={!name.trim()}
+        onClick={() => {
+          onAdd(name.trim(), desc.trim());
+          setName("");
+          setDesc("");
+        }}
+      >
+        추가
+      </Button>
+    </div>
   );
-}
-
-function FormatAdderInner({ onAdd }: { onAdd: (n: string, d: string) => void }) {
-  // simple inline form
-  const Form = require("./FormatAdderForm").default as React.FC<{ onAdd: (n: string, d: string) => void }>;
-  return <Form onAdd={onAdd} />;
 }
 
 // inline export view
