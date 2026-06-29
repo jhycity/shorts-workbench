@@ -26,38 +26,61 @@ export type Platform = "유튜브 쇼츠" | "인스타 릴스" | "틱톡";
 export type Length = "30초" | "60초";
 export type Goal = "조회수 실험" | "수익화 실험" | "채널 성장" | "브랜딩";
 
+export type ContentLineId =
+  | "ai_survival"
+  | "twenties_reality"
+  | "cute_animals"
+  | "movie_summary"
+  | "news_brief"
+  | "hiphop_music"
+  | "book_summary"
+  | "asmr_scenery"
+  | "my_own";
+
+export interface ContentLinePreset {
+  id: ContentLineId;
+  name: string;
+  emoji: string;
+  description: string;
+  recTone: string;
+  recHook: string;
+  recScreen: string;
+  copyrightCaution: string;
+  recFormatNames: string[]; // 추천 포맷 이름 (라이브러리와 매칭)
+}
+
 export interface Candidate {
   id: string;
   text: string;
 }
 
-// 후보 3개 + 선택값을 가지는 표준 노트북 데이터
 export interface CandidateNotebook {
   status: NotebookStatus;
   candidates: [Candidate, Candidate, Candidate];
   selectedId: string | null;
 }
 
-// 트렌드 노트북: 자유 메모 리스트
 export interface TrendNotebookData {
   status: NotebookStatus;
-  keywords: string[]; // 트렌드 키워드
-  flows: string[]; // 참고 흐름
-  concerns: string[]; // 사람들의 고민
+  keywords: string[];
+  flows: string[];
+  concerns: string[];
 }
 
-// 내 아이디어 노트북
 export interface IdeaNotebookData {
   status: NotebookStatus;
-  rawIdeas: string[]; // 떠오른 아이디어 메모
-  shapedFormat: string; // 새 포맷으로 정리한 결과
+  rawIdeas: string[];
+  shapedFormat: string;
 }
 
-// 포맷 라이브러리
 export interface FormatItem {
   id: string;
   name: string;
-  description: string;
+  structure: string;
+  suitedLines: string[]; // 어울리는 콘텐츠 라인 이름들
+  pros: string;
+  risks: string;
+  variations: string;
 }
 export interface FormatNotebookData {
   status: NotebookStatus;
@@ -65,7 +88,6 @@ export interface FormatNotebookData {
   selectedFormatId: string | null;
 }
 
-// 제목/썸네일
 export interface TitleNotebookData {
   status: NotebookStatus;
   titles: [Candidate, Candidate, Candidate];
@@ -74,7 +96,6 @@ export interface TitleNotebookData {
   selectedThumbId: string | null;
 }
 
-// 다양성/원본성 체크
 export interface DiversityCheck {
   id: string;
   label: string;
@@ -90,6 +111,8 @@ export interface ExportNotebookData {
   status: NotebookStatus;
   editorGuide: string;
   uploadChecklist: string[];
+  aiDisclosureNote?: string;
+  copyrightNote?: string;
 }
 
 export interface Project {
@@ -100,6 +123,9 @@ export interface Project {
   platform: Platform;
   length: Length;
   goal: Goal;
+  contentLine: ContentLineId;
+  avoidStyles: { label: string; checked: boolean }[];
+  preferredTones: { label: string; checked: boolean }[];
   createdAt: number;
   updatedAt: number;
   notebooks: {
@@ -115,7 +141,7 @@ export interface Project {
     diversity: DiversityNotebookData;
     export: ExportNotebookData;
   };
-  unlocked: Record<NotebookId, boolean>; // 강제 진행으로 잠금 해제된 노트북
+  unlocked: Record<NotebookId, boolean>;
 }
 
 export const NOTEBOOK_ORDER: NotebookId[] = [
@@ -148,7 +174,7 @@ export const NOTEBOOK_META: Record<
   },
   format: {
     title: "포맷 라이브러리",
-    subtitle: "TOP5형 · 반전 독백형 · 비교형 등",
+    subtitle: "콘텐츠 라인과 어울리는 포맷 선택",
     icon: "📚",
   },
   topic: { title: "주제 선택", subtitle: "주제 후보 3개 중 하나", icon: "🎯" },
