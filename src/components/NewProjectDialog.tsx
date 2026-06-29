@@ -19,7 +19,15 @@ import {
 } from "@/components/ui/select";
 import { useProjects } from "@/lib/projects-context";
 import { createProject } from "@/lib/store";
-import type { Category, Goal, Length, Platform, Route } from "@/lib/types";
+import { CONTENT_LINES } from "@/lib/presets";
+import type {
+  Category,
+  ContentLineId,
+  Goal,
+  Length,
+  Platform,
+  Route,
+} from "@/lib/types";
 
 const CATEGORIES: Category[] = [
   "AI",
@@ -48,6 +56,7 @@ export function NewProjectDialog({
   const [platform, setPlatform] = useState<Platform>("유튜브 쇼츠");
   const [length, setLength] = useState<Length>("60초");
   const [goal, setGoal] = useState<Goal>("조회수 실험");
+  const [contentLine, setContentLine] = useState<ContentLineId>("ai_survival");
 
   const reset = () => {
     setTitle("");
@@ -56,11 +65,20 @@ export function NewProjectDialog({
     setPlatform("유튜브 쇼츠");
     setLength("60초");
     setGoal("조회수 실험");
+    setContentLine("ai_survival");
   };
 
   const submit = () => {
     if (!title.trim()) return;
-    const p = createProject({ title: title.trim(), route, category, platform, length, goal });
+    const p = createProject({
+      title: title.trim(),
+      route,
+      category,
+      platform,
+      length,
+      goal,
+      contentLine,
+    });
     addProject(p);
     setCurrentId(p.id);
     reset();
@@ -69,15 +87,15 @@ export function NewProjectDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>새 쇼츠 프로젝트</DialogTitle>
           <DialogDescription>
-            프로젝트 하나 = 쇼츠 영상 한 편. 기본 정보를 골라 시작하세요.
+            프로젝트 하나 = 쇼츠 영상 한 편. 콘텐츠 라인을 먼저 정해두면 이후 단계가 자동으로 맞춰져요.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-4 py-2">
+        <div className="grid gap-5 py-2">
           <div className="grid gap-2">
             <Label htmlFor="title">프로젝트 제목</Label>
             <Input
@@ -86,6 +104,35 @@ export function NewProjectDialog({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
             />
+          </div>
+
+          <div className="grid gap-2">
+            <Label>콘텐츠 라인 (영상이 속할 방향)</Label>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {CONTENT_LINES.map((c) => {
+                const selected = contentLine === c.id;
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => setContentLine(c.id)}
+                    className={`text-left rounded-lg border p-3 transition ${
+                      selected
+                        ? "border-primary bg-accent ring-2 ring-primary/30"
+                        : "border-border hover:bg-muted"
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 text-sm font-semibold">
+                      <span>{c.emoji}</span>
+                      <span>{c.name}</span>
+                    </div>
+                    <div className="mt-1 text-[11px] leading-snug text-muted-foreground line-clamp-3">
+                      {c.description}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <div className="grid gap-2">

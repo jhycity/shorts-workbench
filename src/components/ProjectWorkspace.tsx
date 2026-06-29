@@ -2,16 +2,34 @@ import { useState } from "react";
 import { useProjects } from "@/lib/projects-context";
 import { NOTEBOOK_META, NOTEBOOK_ORDER, type NotebookId } from "@/lib/types";
 import { isLocked, nextStep, notebookProgress } from "@/lib/store";
+import { CONTENT_LINE_MAP } from "@/lib/presets";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { CheckCircle2, Circle, Loader2, Lock, Unlock, Sparkles, Trash2 } from "lucide-react";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
+  CheckCircle2,
+  Circle,
+  Loader2,
+  Lock,
+  Unlock,
+  Sparkles,
+  Trash2,
+  Settings,
+} from "lucide-react";
 import { NotebookView } from "./NotebookView";
+import { ProjectSettingsDialog } from "./ProjectSettingsDialog";
 import { toast } from "sonner";
 
 export function ProjectWorkspace() {
   const { current, setCurrentId, deleteProject, unlock } = useProjects();
   const [openId, setOpenId] = useState<NotebookId | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   if (!current) return null;
 
@@ -21,6 +39,7 @@ export function ProjectWorkspace() {
 
   const progress = notebookProgress(current);
   const next = nextStep(current);
+  const line = CONTENT_LINE_MAP[current.contentLine];
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-8">
@@ -34,26 +53,65 @@ export function ProjectWorkspace() {
           </button>
           <h1 className="text-3xl font-bold tracking-tight">{current.title}</h1>
           <div className="mt-2 flex flex-wrap gap-1.5">
-            <Badge variant="secondary">{current.route === "trend" ? "📈 트렌드 기반" : "💡 내 아이디어 기반"}</Badge>
+            <Badge className="bg-primary/15 text-primary border-primary/20" variant="outline">
+              {line.emoji} {line.name}
+            </Badge>
+            <Badge variant="secondary">
+              {current.route === "trend" ? "📈 트렌드 기반" : "💡 내 아이디어 기반"}
+            </Badge>
             <Badge variant="outline">{current.category}</Badge>
             <Badge variant="outline">{current.platform}</Badge>
             <Badge variant="outline">{current.length}</Badge>
             <Badge variant="outline">목표: {current.goal}</Badge>
           </div>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-muted-foreground hover:text-destructive"
-          onClick={() => {
-            if (confirm("이 프로젝트를 삭제할까요? (되돌릴 수 없어요)")) {
-              deleteProject(current.id);
-            }
-          }}
-        >
-          <Trash2 className="size-4 mr-1" /> 프로젝트 삭제
-        </Button>
+        <div className="flex gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSettingsOpen(true)}
+          >
+            <Settings className="size-4 mr-1" /> 취향 설정
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground hover:text-destructive"
+            onClick={() => {
+              if (confirm("이 프로젝트를 삭제할까요? (되돌릴 수 없어요)")) {
+                deleteProject(current.id);
+              }
+            }}
+          >
+            <Trash2 className="size-4 mr-1" /> 삭제
+          </Button>
+        </div>
       </div>
+
+      {/* 콘텐츠 라인 추천 카드 */}
+      <Accordion type="single" collapsible defaultValue="rec" className="mb-6">
+        <AccordionItem value="rec" className="rounded-xl border bg-paper px-5">
+          <AccordionTrigger className="text-sm">
+            <span className="flex items-center gap-2">
+              <Sparkles className="size-4 text-primary" />
+              <strong>{line.name}</strong> 라인 추천 제작 방식
+            </span>
+          </AccordionTrigger>
+          <AccordionContent>
+            <div className="grid gap-3 sm:grid-cols-2 pb-2 text-sm">
+              <RecCard label="추천 영상 톤" value={line.recTone} />
+              <RecCard label="추천 후킹" value={line.recHook} />
+              <RecCard label="추천 화면 스타일" value={line.recScreen} />
+              <RecCard label="저작권/주의점" value={line.copyrightCaution} />
+              <RecCard
+                label="추천 포맷"
+                value={line.recFormatNames.join(" · ")}
+                full
+              />
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
 
       <div className="rounded-xl border bg-paper p-5 mb-6">
         <div className="flex items-center justify-between mb-2">
@@ -110,14 +168,13 @@ export function ProjectWorkspace() {
                 </div>
               </div>
               {locked && (
-                <div
-                  className="mt-3 pl-2"
-                  onClick={(e) => e.stopPropagation()}
-                >
+                <div className="mt-3 pl-2" onClick={(e) => e.stopPropagation()}>
                   <button
                     onClick={() => {
                       unlock(id);
-                      toast("잠금을 해제했어요", { description: "이전 단계를 건너뛰고 진행합니다." });
+                      toast("잠금을 해제했어요", {
+                        description: "이전 단계를 건너뛰고 진행합니다.",
+                      });
                     }}
                     className="text-[11px] text-muted-foreground inline-flex items-center gap-1 hover:text-foreground"
                   >
@@ -129,6 +186,27 @@ export function ProjectWorkspace() {
           );
         })}
       </div>
+
+      <ProjectSettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+    </div>
+  );
+}
+
+function RecCard({
+  label,
+  value,
+  full,
+}: {
+  label: string;
+  value: string;
+  full?: boolean;
+}) {
+  return (
+    <div className={`rounded-md border bg-card p-3 ${full ? "sm:col-span-2" : ""}`}>
+      <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+        {label}
+      </div>
+      <div className="mt-1 text-sm">{value}</div>
     </div>
   );
 }
