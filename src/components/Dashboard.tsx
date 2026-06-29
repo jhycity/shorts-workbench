@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useProjects } from "@/lib/projects-context";
 import { NOTEBOOK_META, NOTEBOOK_ORDER } from "@/lib/types";
 import { nextStep, notebookProgress } from "@/lib/store";
+import { CONTENT_LINE_MAP } from "@/lib/presets";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -45,10 +46,12 @@ export function Dashboard() {
                     <ArrowRight className="size-4 text-muted-foreground shrink-0 mt-1" />
                   </div>
                   <div className="flex flex-wrap gap-1 mb-3">
+                    <Badge className="text-[10px] bg-primary/15 text-primary border-primary/20" variant="outline">
+                      {CONTENT_LINE_MAP[p.contentLine].emoji} {CONTENT_LINE_MAP[p.contentLine].name}
+                    </Badge>
                     <Badge variant="secondary" className="text-[10px]">
                       {p.route === "trend" ? "트렌드 기반" : "내 아이디어 기반"}
                     </Badge>
-                    <Badge variant="outline" className="text-[10px]">{p.category}</Badge>
                     <Badge variant="outline" className="text-[10px]">{p.platform}</Badge>
                     <Badge variant="outline" className="text-[10px]">{p.length}</Badge>
                   </div>

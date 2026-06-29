@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useProjects } from "@/lib/projects-context";
-import type { NotebookId, Project } from "@/lib/types";
+import type { FormatItem, NotebookId, Project } from "@/lib/types";
 import { NOTEBOOK_META } from "@/lib/types";
+import { CONTENT_LINE_MAP } from "@/lib/presets";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, CheckCircle2, Circle, Loader2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Circle, Loader2, Sparkles } from "lucide-react";
 import { CandidatePicker, StringList } from "./notebooks/Shared";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -51,6 +52,8 @@ export function NotebookView({ notebookId, onBack }: Props) {
         <StatusPill status={current.notebooks[notebookId].status} />
       </div>
 
+      <LineHint notebookId={notebookId} />
+
       <Separator className="mb-6" />
 
       <div className="rounded-xl border bg-paper p-6 shadow-sm">
@@ -69,6 +72,45 @@ export function NotebookView({ notebookId, onBack }: Props) {
         >
           <CheckCircle2 className="size-4 mr-1.5" /> 완료하고 돌아가기
         </Button>
+      </div>
+    </div>
+  );
+}
+
+// 콘텐츠 라인 기반 추천 박스 (각 단계별로 다른 추천 노출)
+function LineHint({ notebookId }: { notebookId: NotebookId }) {
+  const { current } = useProjects();
+  if (!current) return null;
+  const line = CONTENT_LINE_MAP[current.contentLine];
+
+  const map: Partial<Record<NotebookId, { label: string; value: string }[]>> = {
+    hook: [{ label: "추천 후킹", value: line.recHook }],
+    voice: [{ label: "추천 톤", value: line.recTone }],
+    scene: [{ label: "추천 화면 스타일", value: line.recScreen }],
+    format: [{ label: "추천 포맷", value: line.recFormatNames.join(" · ") }],
+    diversity: [{ label: "이 라인의 저작권 주의점", value: line.copyrightCaution }],
+    title: [{ label: "추천 톤", value: line.recTone }],
+    script: [
+      { label: "추천 톤", value: line.recTone },
+      { label: "추천 화면 스타일", value: line.recScreen },
+    ],
+  };
+
+  const items = map[notebookId];
+  if (!items) return null;
+
+  return (
+    <div className="mb-6 rounded-lg border border-primary/20 bg-accent/40 p-3">
+      <div className="flex items-center gap-1.5 text-xs font-semibold text-primary">
+        <Sparkles className="size-3.5" /> {line.emoji} {line.name} 라인 가이드
+      </div>
+      <div className="mt-2 grid gap-1.5 text-sm">
+        {items.map((it) => (
+          <div key={it.label}>
+            <span className="text-muted-foreground">{it.label}: </span>
+            <span>{it.value}</span>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -154,25 +196,51 @@ function NotebookBody({ notebookId }: { notebookId: NotebookId }) {
         </div>
       );
 
-    case "format":
+    case "format": {
+      const line = CONTENT_LINE_MAP[current.contentLine];
+      const recommended = new Set(line.recFormatNames);
       return (
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            이번 영상에 사용할 포맷을 하나 골라주세요. 새 포맷을 추가할 수도 있어요.
+            이번 영상에 사용할 포맷을 하나 골라주세요. <strong>{line.name}</strong> 라인 추천 포맷에는 ⭐ 표시가 붙어요.
           </p>
-          <div className="grid gap-2 md:grid-cols-2">
+          <div className="grid gap-3 md:grid-cols-2">
             {nb.format.formats.map((f) => {
               const selected = nb.format.selectedFormatId === f.id;
+              const isRec = recommended.has(f.name);
               return (
                 <button
                   key={f.id}
                   onClick={() => patch("format", { ...nb.format, selectedFormatId: f.id })}
-                  className={`text-left rounded-lg border p-3 transition ${
-                    selected ? "border-primary bg-accent/60" : "border-border hover:bg-muted"
+                  className={`text-left rounded-lg border p-4 transition ${
+                    selected ? "border-primary bg-accent/60 ring-2 ring-primary/30" : "border-border hover:bg-muted"
                   }`}
                 >
-                  <div className="font-semibold text-sm">{f.name}</div>
-                  <div className="text-xs text-muted-foreground mt-0.5">{f.description}</div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-semibold text-sm">{f.name}</span>
+                    {isRec && (
+                      <Badge className="bg-primary/15 text-primary border-primary/20" variant="outline">
+                        ⭐ 추천
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="mt-2 grid gap-1 text-xs">
+                    {f.structure && (
+                      <div><span className="text-muted-foreground">구조: </span>{f.structure}</div>
+                    )}
+                    {f.suitedLines.length > 0 && (
+                      <div><span className="text-muted-foreground">어울리는 라인: </span>{f.suitedLines.join(", ")}</div>
+                    )}
+                    {f.pros && (
+                      <div><span className="text-muted-foreground">장점: </span>{f.pros}</div>
+                    )}
+                    {f.risks && (
+                      <div className="text-warning-foreground"><span className="text-muted-foreground">반복 위험: </span>{f.risks}</div>
+                    )}
+                    {f.variations && (
+                      <div><span className="text-muted-foreground">변주: </span>{f.variations}</div>
+                    )}
+                  </div>
                 </button>
               );
             })}
@@ -180,6 +248,7 @@ function NotebookBody({ notebookId }: { notebookId: NotebookId }) {
           <AddFormat />
         </div>
       );
+    }
 
     case "topic":
       return (
@@ -273,38 +342,65 @@ function NotebookBody({ notebookId }: { notebookId: NotebookId }) {
         />
       );
 
-    case "diversity":
+    case "diversity": {
+      const avoidActive = current.avoidStyles.filter((a) => a.checked);
       return (
-        <div className="space-y-4">
-          <ul className="space-y-2">
-            {nb.diversity.checks.map((c) => (
-              <li key={c.id} className="flex items-start gap-3 rounded-md border bg-card p-3">
-                <Checkbox
-                  checked={c.checked}
-                  onCheckedChange={(v) =>
-                    patch("diversity", {
-                      ...nb.diversity,
-                      checks: nb.diversity.checks.map((x) =>
-                        x.id === c.id ? { ...x, checked: !!v } : x,
-                      ),
-                    })
-                  }
-                  className="mt-0.5"
-                />
-                <span className="text-sm">{c.label}</span>
-              </li>
-            ))}
-          </ul>
+        <div className="space-y-5">
+          <Tabs defaultValue="checks">
+            <TabsList>
+              <TabsTrigger value="checks">다양성 체크</TabsTrigger>
+              <TabsTrigger value="avoid">피하고 싶은 스타일</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="checks" className="mt-4 space-y-2">
+              <ul className="space-y-2">
+                {nb.diversity.checks.map((c) => (
+                  <li key={c.id} className="flex items-start gap-3 rounded-md border bg-card p-3">
+                    <Checkbox
+                      checked={c.checked}
+                      onCheckedChange={(v) =>
+                        patch("diversity", {
+                          ...nb.diversity,
+                          checks: nb.diversity.checks.map((x) =>
+                            x.id === c.id ? { ...x, checked: !!v } : x,
+                          ),
+                        })
+                      }
+                      className="mt-0.5"
+                    />
+                    <span className="text-sm">{c.label}</span>
+                  </li>
+                ))}
+              </ul>
+            </TabsContent>
+
+            <TabsContent value="avoid" className="mt-4">
+              <p className="text-sm text-muted-foreground mb-2">
+                이 프로젝트가 절대 닮으면 안 되는 스타일들. (취향 설정에서 수정)
+              </p>
+              {avoidActive.length === 0 ? (
+                <div className="text-sm text-muted-foreground">체크된 항목 없음</div>
+              ) : (
+                <ul className="space-y-1 text-sm">
+                  {avoidActive.map((a, i) => (
+                    <li key={i} className="rounded-md border bg-card px-3 py-2">🚫 {a.label}</li>
+                  ))}
+                </ul>
+              )}
+            </TabsContent>
+          </Tabs>
+
           <Field label="메모" hint="추가로 점검한 내용을 적어두세요">
             <Textarea
               rows={3}
               value={nb.diversity.note}
               onChange={(e) => patch("diversity", { ...nb.diversity, note: e.target.value })}
-              placeholder="예: 음악 소스는 Pixabay 무료 BGM 사용"
+              placeholder="예: 음악 소스는 Pixabay 무료 BGM 사용. AI 생성 인물 1컷 등장 → 설명란 표기 예정."
             />
           </Field>
         </div>
       );
+    }
 
     case "export":
       return <ExportView />;
@@ -338,7 +434,7 @@ function AddFormat() {
     <details className="rounded-md border bg-muted/30 p-3 text-sm">
       <summary className="cursor-pointer text-muted-foreground">+ 새 포맷 추가</summary>
       <FormatAdder
-        onAdd={(name, description) =>
+        onAdd={(item) =>
           updateCurrent((p) => ({
             ...p,
             notebooks: {
@@ -347,7 +443,7 @@ function AddFormat() {
                 ...p.notebooks.format,
                 formats: [
                   ...p.notebooks.format.formats,
-                  { id: Math.random().toString(36).slice(2, 9), name, description },
+                  { id: Math.random().toString(36).slice(2, 9), ...item },
                 ],
               },
             },
@@ -358,20 +454,32 @@ function AddFormat() {
   );
 }
 
-function FormatAdder({ onAdd }: { onAdd: (n: string, d: string) => void }) {
+function FormatAdder({ onAdd }: { onAdd: (f: Omit<FormatItem, "id">) => void }) {
   const [name, setName] = useState("");
-  const [desc, setDesc] = useState("");
+  const [structure, setStructure] = useState("");
+  const [pros, setPros] = useState("");
+  const [risks, setRisks] = useState("");
+  const [variations, setVariations] = useState("");
   return (
-    <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_2fr_auto]">
+    <div className="mt-3 grid gap-2">
       <Input placeholder="포맷 이름" value={name} onChange={(e) => setName(e.target.value)} />
-      <Input placeholder="짧은 설명" value={desc} onChange={(e) => setDesc(e.target.value)} />
+      <Input placeholder="구조" value={structure} onChange={(e) => setStructure(e.target.value)} />
+      <Input placeholder="장점" value={pros} onChange={(e) => setPros(e.target.value)} />
+      <Input placeholder="반복 위험" value={risks} onChange={(e) => setRisks(e.target.value)} />
+      <Input placeholder="변주 아이디어" value={variations} onChange={(e) => setVariations(e.target.value)} />
       <Button
         size="sm"
         disabled={!name.trim()}
         onClick={() => {
-          onAdd(name.trim(), desc.trim());
-          setName("");
-          setDesc("");
+          onAdd({
+            name: name.trim(),
+            structure: structure.trim(),
+            suitedLines: [],
+            pros: pros.trim(),
+            risks: risks.trim(),
+            variations: variations.trim(),
+          });
+          setName(""); setStructure(""); setPros(""); setRisks(""); setVariations("");
         }}
       >
         추가
@@ -380,16 +488,17 @@ function FormatAdder({ onAdd }: { onAdd: (n: string, d: string) => void }) {
   );
 }
 
-// inline export view
 function ExportView() {
-  const { current } = useProjects();
+  const { current, updateCurrent } = useProjects();
   if (!current) return null;
   const nb = current.notebooks;
+  const line = CONTENT_LINE_MAP[current.contentLine];
 
   const pick = (cands: { id: string; text: string }[], selected: string | null) =>
     cands.find((c) => c.id === selected)?.text || "(미선택)";
 
-  const fmt = nb.format.formats.find((f) => f.id === nb.format.selectedFormatId)?.name || "(미선택)";
+  const fmtObj = nb.format.formats.find((f) => f.id === nb.format.selectedFormatId);
+  const fmt = fmtObj?.name || "(미선택)";
   const topic = pick(nb.topic.candidates, nb.topic.selectedId);
   const hook = pick(nb.hook.candidates, nb.hook.selectedId);
   const script = pick(nb.script.candidates, nb.script.selectedId);
@@ -397,51 +506,61 @@ function ExportView() {
   const thumb = pick(nb.title.thumbs, nb.title.selectedThumbId);
   const voice = pick(nb.voice.candidates, nb.voice.selectedId);
   const scene = pick(nb.scene.candidates, nb.scene.selectedId);
+
+  // TTS용: 문장 단위 줄바꿈
   const ttsScript = script.replace(/([.!?。！？])\s*/g, "$1\n");
+  // 자막용: 짧은 문장 단위 (TTS와 거의 동일하지만 빈 줄 제거 + 5어절 기준 컷)
+  const subtitleLines = ttsScript
+    .split(/\n/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .join("\n");
 
-  const items = [
-    { label: "최종 주제", value: topic },
-    { label: "최종 후킹 문장", value: hook },
-    { label: "최종 대본", value: script },
-    { label: "TTS용 줄바꿈 대본", value: ttsScript },
-    { label: "선택한 목소리 톤", value: voice },
-    { label: "제목", value: title },
-    { label: "썸네일 문구", value: thumb },
-    { label: "선택한 포맷", value: fmt },
-    { label: "장면 구성", value: scene },
-  ];
+  const avoidActive = current.avoidStyles.filter((a) => a.checked).map((a) => a.label);
+  const preferActive = current.preferredTones.filter((a) => a.checked).map((a) => a.label);
 
-  const meta = `프로젝트: ${current.title}
-플랫폼: ${current.platform} / 길이: ${current.length} / 카테고리: ${current.category}
-제작 루트: ${current.route === "trend" ? "트렌드 기반" : "내 아이디어 기반"}
-목표: ${current.goal}`;
+  const diversityResult = `${nb.diversity.checks.filter((c) => c.checked).length} / ${nb.diversity.checks.length} 항목 확인됨\n${nb.diversity.note ? `메모: ${nb.diversity.note}` : ""}`;
 
-  const checklist = [
+  const finalChecklist = [
     "썸네일/제목이 허위 과장이 아닌지 마지막 확인",
     "BGM/이미지 저작권 표기 또는 라이선스 확인",
-    "AI 생성 장면이라면 설명에 표기 검토",
+    "AI 생성 장면이라면 설명/캡션에 표기 검토",
     "자막 오타 확인",
+    "‘피하고 싶은 스타일’ 항목과 닮지 않았는지 한 번 더 비교",
     "업로드 시간대 결정 (플랫폼 알고리즘 고려)",
   ];
 
-  const editorGuide = `[편집 도구에 그대로 넣는 가이드]
-1) ${voice} 톤으로 TTS 합성
-2) 후킹: "${hook}" — 첫 1~2초에 강하게
-3) 본문 대본 그대로 자막 입력
-4) 장면 구성: ${scene}
-5) 마지막에 클로징 자막 + 다음 영상 유도`;
+  const items: { label: string; value: string }[] = [
+    { label: "최종 콘텐츠 라인", value: `${line.emoji} ${line.name} — ${line.description}` },
+    { label: "선택한 포맷", value: fmtObj ? `${fmt}\n구조: ${fmtObj.structure}\n반복 위험: ${fmtObj.risks}` : fmt },
+    { label: "최종 주제", value: topic },
+    { label: "최종 후킹", value: hook },
+    { label: "최종 대본", value: script },
+    { label: "TTS용 대본 (문장별 줄바꿈)", value: ttsScript },
+    { label: "자막용 문장", value: subtitleLines },
+    { label: "장면 구성", value: scene },
+    { label: "목소리 톤", value: voice },
+    { label: "제목 후보 (최종)", value: title },
+    { label: "썸네일 문구", value: thumb },
+    { label: "저작권 주의점", value: `${line.copyrightCaution}${nb.export.copyrightNote ? `\n메모: ${nb.export.copyrightNote}` : ""}` },
+    { label: "AI 사용 공개 필요 여부 메모", value: nb.export.aiDisclosureNote || "(메모 없음)" },
+    { label: "다양성/원본성 체크 결과", value: diversityResult },
+    { label: "피하고 싶은 스타일 (이번 영상 기준)", value: avoidActive.length ? avoidActive.map((s) => `- ${s}`).join("\n") : "(없음)" },
+    { label: "내가 선호하는 영상 톤", value: preferActive.length ? preferActive.map((s) => `- ${s}`).join("\n") : "(없음)" },
+    { label: "업로드 전 최종 점검", value: finalChecklist.map((c) => `- [ ] ${c}`).join("\n") },
+  ];
+
+  const meta = `프로젝트: ${current.title}
+콘텐츠 라인: ${line.name}
+플랫폼: ${current.platform} / 길이: ${current.length} / 카테고리: ${current.category}
+제작 루트: ${current.route === "trend" ? "트렌드 기반" : "내 아이디어 기반"}
+목표: ${current.goal}`;
 
   const fullText = `# 🎬 쇼츠 최종 패키지
 
 ${meta}
 
 ${items.map((it) => `## ${it.label}\n${it.value}\n`).join("\n")}
-
-## 편집 가이드
-${editorGuide}
-
-## 업로드 전 체크리스트
-${checklist.map((c) => `- [ ] ${c}`).join("\n")}
 `;
 
   const copy = (text: string, label: string) => {
@@ -455,6 +574,41 @@ ${checklist.map((c) => `- [ ] ${c}`).join("\n")}
         {meta}
       </div>
 
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="저작권 메모 (영상 고유)" hint="이번 영상에만 적용되는 내용">
+          <Textarea
+            rows={3}
+            value={nb.export.copyrightNote ?? ""}
+            onChange={(e) =>
+              updateCurrent((p) => ({
+                ...p,
+                notebooks: {
+                  ...p.notebooks,
+                  export: { ...p.notebooks.export, copyrightNote: e.target.value },
+                },
+              }))
+            }
+            placeholder="예: BGM은 Pixabay ‘calm-piano’ 사용"
+          />
+        </Field>
+        <Field label="AI 사용 공개 필요 여부 메모" hint="실사형 AI 이미지 등">
+          <Textarea
+            rows={3}
+            value={nb.export.aiDisclosureNote ?? ""}
+            onChange={(e) =>
+              updateCurrent((p) => ({
+                ...p,
+                notebooks: {
+                  ...p.notebooks,
+                  export: { ...p.notebooks.export, aiDisclosureNote: e.target.value },
+                },
+              }))
+            }
+            placeholder="예: 인물 1컷 AI 생성 → 캡션에 ‘AI 생성’ 표기"
+          />
+        </Field>
+      </div>
+
       {items.map((it) => (
         <div key={it.label} className="rounded-lg border bg-card p-4">
           <div className="flex items-center justify-between mb-2">
@@ -466,24 +620,6 @@ ${checklist.map((c) => `- [ ] ${c}`).join("\n")}
           <pre className="whitespace-pre-wrap text-sm text-foreground/90">{it.value}</pre>
         </div>
       ))}
-
-      <div className="rounded-lg border bg-card p-4">
-        <div className="flex items-center justify-between mb-2">
-          <div className="text-sm font-semibold">편집 도구에 넣을 가이드</div>
-          <Button size="sm" variant="outline" onClick={() => copy(editorGuide, "편집 가이드")}>복사</Button>
-        </div>
-        <pre className="whitespace-pre-wrap text-sm">{editorGuide}</pre>
-      </div>
-
-      <div className="rounded-lg border bg-card p-4">
-        <div className="flex items-center justify-between mb-2">
-          <div className="text-sm font-semibold">업로드 전 체크리스트</div>
-          <Button size="sm" variant="outline" onClick={() => copy(checklist.map((c) => `- [ ] ${c}`).join("\n"), "체크리스트")}>복사</Button>
-        </div>
-        <ul className="text-sm space-y-1">
-          {checklist.map((c) => <li key={c}>☐ {c}</li>)}
-        </ul>
-      </div>
 
       <div className="sticky bottom-4 flex justify-end">
         <Button size="lg" onClick={() => copy(fullText, "전체 패키지")}>
