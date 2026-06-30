@@ -1,7 +1,6 @@
+// 쇼츠 자동 제작 OS — v2 (시리즈 → 쇼츠)
+
 export type NotebookId =
-  | "trend"
-  | "idea"
-  | "format"
   | "topic"
   | "hook"
   | "script"
@@ -13,32 +12,11 @@ export type NotebookId =
 
 export type NotebookStatus = "todo" | "in_progress" | "done";
 
-export type Route = "trend" | "idea";
-export type Category =
-  | "AI"
-  | "자기계발"
-  | "돈/부업"
-  | "20대 현실 조언"
-  | "음악/창작"
-  | "공부"
-  | "사회현상";
-export type Platform = "유튜브 쇼츠" | "인스타 릴스" | "틱톡";
 export type Length = "30초" | "60초";
-export type Goal = "조회수 실험" | "수익화 실험" | "채널 성장" | "브랜딩";
 
-export type ContentLineId =
-  | "ai_survival"
-  | "twenties_reality"
-  | "cute_animals"
-  | "movie_summary"
-  | "news_brief"
-  | "hiphop_music"
-  | "book_summary"
-  | "asmr_scenery"
-  | "my_own";
-
-export interface ContentLinePreset {
-  id: ContentLineId;
+// 사용자 편집 가능한 콘텐츠 라인
+export interface ContentLine {
+  id: string;
   name: string;
   emoji: string;
   description: string;
@@ -46,7 +24,41 @@ export interface ContentLinePreset {
   recHook: string;
   recScreen: string;
   copyrightCaution: string;
-  recFormatNames: string[]; // 추천 포맷 이름 (라이브러리와 매칭)
+  isCustom?: boolean;
+}
+
+// 전역 아이디어 보관함
+export interface Idea {
+  id: string;
+  title: string;
+  description: string;
+  contentLineIds: string[];
+  formatIds: string[];
+  reason: string;
+  refKeywords: string;
+  pinnedSeriesId?: string;
+  createdAt: number;
+}
+
+// 전역 포맷 라이브러리
+export interface Format {
+  id: string;
+  name: string;
+  structure: string;
+  contentLineIds: string[];
+  pros: string;
+  risks: string;
+  variations: string;
+  isCustom?: boolean;
+}
+
+// 시리즈 내 트렌드 입력함
+export interface TrendInbox {
+  keywords: string;
+  emotions: string;
+  refStructure: string;
+  myAngle: string;
+  avoid: string;
 }
 
 export interface Candidate {
@@ -58,34 +70,6 @@ export interface CandidateNotebook {
   status: NotebookStatus;
   candidates: [Candidate, Candidate, Candidate];
   selectedId: string | null;
-}
-
-export interface TrendNotebookData {
-  status: NotebookStatus;
-  keywords: string[];
-  flows: string[];
-  concerns: string[];
-}
-
-export interface IdeaNotebookData {
-  status: NotebookStatus;
-  rawIdeas: string[];
-  shapedFormat: string;
-}
-
-export interface FormatItem {
-  id: string;
-  name: string;
-  structure: string;
-  suitedLines: string[]; // 어울리는 콘텐츠 라인 이름들
-  pros: string;
-  risks: string;
-  variations: string;
-}
-export interface FormatNotebookData {
-  status: NotebookStatus;
-  formats: FormatItem[];
-  selectedFormatId: string | null;
 }
 
 export interface TitleNotebookData {
@@ -101,37 +85,32 @@ export interface DiversityCheck {
   label: string;
   checked: boolean;
 }
+
 export interface DiversityNotebookData {
   status: NotebookStatus;
   checks: DiversityCheck[];
   note: string;
+  monetizationNote: string;
 }
 
 export interface ExportNotebookData {
   status: NotebookStatus;
   editorGuide: string;
   uploadChecklist: string[];
-  aiDisclosureNote?: string;
-  copyrightNote?: string;
+  aiDisclosureNote: string;
+  copyrightNote: string;
 }
 
-export interface Project {
+export interface Short {
   id: string;
+  seriesId: string;
   title: string;
-  route: Route;
-  category: Category;
-  platform: Platform;
-  length: Length;
-  goal: Goal;
-  contentLine: ContentLineId;
-  avoidStyles: { label: string; checked: boolean }[];
-  preferredTones: { label: string; checked: boolean }[];
+  sourceType: "trend" | "idea" | "format" | "blank";
+  sourceRef?: string;
+  isDraft?: boolean;
   createdAt: number;
   updatedAt: number;
   notebooks: {
-    trend: TrendNotebookData;
-    idea: IdeaNotebookData;
-    format: FormatNotebookData;
     topic: CandidateNotebook;
     hook: CandidateNotebook;
     script: CandidateNotebook;
@@ -144,10 +123,31 @@ export interface Project {
   unlocked: Record<NotebookId, boolean>;
 }
 
+export interface Series {
+  id: string;
+  title: string;
+  description: string;
+  contentLineIds: string[]; // 최대 3개
+  defaultLength: Length;
+  defaultTone: string;
+  defaultScreenStyle: string;
+  avoidStyles: string[];
+  trendInbox: TrendInbox;
+  shorts: Short[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface AppState {
+  schemaVersion: 2;
+  series: Series[];
+  contentLines: ContentLine[];
+  ideas: Idea[];
+  formats: Format[];
+  lastSavedAt: number;
+}
+
 export const NOTEBOOK_ORDER: NotebookId[] = [
-  "trend",
-  "idea",
-  "format",
   "topic",
   "hook",
   "script",
@@ -162,38 +162,23 @@ export const NOTEBOOK_META: Record<
   NotebookId,
   { title: string; subtitle: string; icon: string }
 > = {
-  trend: {
-    title: "트렌드 노트북",
-    subtitle: "트렌드 키워드 · 흐름 · 사람들의 고민",
-    icon: "📈",
-  },
-  idea: {
-    title: "내 아이디어 노트북",
-    subtitle: "독자적인 영상 아이디어를 새 포맷으로",
-    icon: "💡",
-  },
-  format: {
-    title: "포맷 라이브러리",
-    subtitle: "콘텐츠 라인과 어울리는 포맷 선택",
-    icon: "📚",
-  },
   topic: { title: "주제 선택", subtitle: "주제 후보 3개 중 하나", icon: "🎯" },
-  hook: { title: "후킹 노트북", subtitle: "첫 1~2초 문장 후보 3개", icon: "🪝" },
-  script: { title: "대본 노트북", subtitle: "30/60초 대본 후보 3개", icon: "📝" },
+  hook: { title: "후킹 선택", subtitle: "첫 1~2초 문장 후보 3개", icon: "🪝" },
+  script: { title: "대본 선택", subtitle: "분량 대본 후보 3개", icon: "📝" },
   title: {
-    title: "제목 / 썸네일",
+    title: "제목/썸네일 선택",
     subtitle: "제목 3개 · 썸네일 문구 3개",
     icon: "🖼️",
   },
-  voice: { title: "목소리 노트북", subtitle: "TTS 톤 후보 3개", icon: "🎙️" },
+  voice: { title: "목소리 선택", subtitle: "TTS 톤 후보 3개", icon: "🎙️" },
   scene: {
-    title: "장면 구성 노트북",
+    title: "장면 구성 선택",
     subtitle: "자막 · B-roll · 화면 흐름",
     icon: "🎬",
   },
   diversity: {
-    title: "다양성 / 원본성 체크",
-    subtitle: "반복 · 저작권 · 낚시성 점검",
+    title: "다양성 / 원본성 / 수익화 체크",
+    subtitle: "반복 · 저작권 · 수익화 위험 점검",
     icon: "🛡️",
   },
   export: {
@@ -202,3 +187,11 @@ export const NOTEBOOK_META: Record<
     icon: "📦",
   },
 };
+
+export const DEFAULT_AVOID_STYLES = [
+  "양산형 AI 쇼츠 느낌",
+  "의미 없는 명언 영상",
+  "팩트체크 없는 주장",
+  "자극만 있고 내용 없는 영상",
+  "너무 똑같은 포맷 반복",
+];

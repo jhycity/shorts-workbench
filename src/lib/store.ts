@@ -1,22 +1,23 @@
 import type {
-  Project,
-  Route,
-  Category,
-  Platform,
-  Length,
-  Goal,
+  AppState,
   Candidate,
+  CandidateNotebook,
+  ContentLine,
+  Length,
   NotebookId,
-  ContentLineId,
+  Series,
+  Short,
 } from "./types";
+import { NOTEBOOK_ORDER, DEFAULT_AVOID_STYLES } from "./types";
 import {
-  defaultFormats,
-  DEFAULT_AVOID_STYLES,
-  DEFAULT_PREFERRED_TONES,
+  SEED_CONTENT_LINES,
   defaultDiversityChecks,
+  seedFormats,
+  uid,
 } from "./presets";
 
-const uid = () => Math.random().toString(36).slice(2, 10);
+const KEY = "shorts-os::state::v2";
+const LEGACY_KEY_V1 = "shorts-os::projects::v1";
 
 const emptyCandidates = (): [Candidate, Candidate, Candidate] => [
   { id: uid(), text: "" },
@@ -24,53 +25,39 @@ const emptyCandidates = (): [Candidate, Candidate, Candidate] => [
   { id: uid(), text: "" },
 ];
 
-export function createProject(input: {
-  title: string;
-  route: Route;
-  category: Category;
-  platform: Platform;
-  length: Length;
-  goal: Goal;
-  contentLine: ContentLineId;
-}): Project {
-  const now = Date.now();
-  const unlocked = Object.fromEntries(
-    (
-      [
-        "trend",
-        "idea",
-        "format",
-        "topic",
-        "hook",
-        "script",
-        "title",
-        "voice",
-        "scene",
-        "diversity",
-        "export",
-      ] as NotebookId[]
-    ).map((k) => [k, false]),
-  ) as Record<NotebookId, boolean>;
+const emptyCandidateNotebook = (): CandidateNotebook => ({
+  status: "todo",
+  candidates: emptyCandidates(),
+  selectedId: null,
+});
 
+const emptyUnlocked = (): Record<NotebookId, boolean> =>
+  Object.fromEntries(NOTEBOOK_ORDER.map((k) => [k, false])) as Record<
+    NotebookId,
+    boolean
+  >;
+
+export function createShort(input: {
+  seriesId: string;
+  title: string;
+  sourceType: Short["sourceType"];
+  sourceRef?: string;
+  isDraft?: boolean;
+}): Short {
+  const now = Date.now();
   return {
     id: uid(),
-    ...input,
-    avoidStyles: DEFAULT_AVOID_STYLES.map((label) => ({ label, checked: true })),
-    preferredTones: DEFAULT_PREFERRED_TONES.map((label) => ({ label, checked: true })),
+    seriesId: input.seriesId,
+    title: input.title,
+    sourceType: input.sourceType,
+    sourceRef: input.sourceRef,
+    isDraft: input.isDraft,
     createdAt: now,
     updatedAt: now,
-    unlocked,
     notebooks: {
-      trend: { status: "todo", keywords: [], flows: [], concerns: [] },
-      idea: { status: "todo", rawIdeas: [], shapedFormat: "" },
-      format: {
-        status: "todo",
-        formats: defaultFormats(),
-        selectedFormatId: null,
-      },
-      topic: { status: "todo", candidates: emptyCandidates(), selectedId: null },
-      hook: { status: "todo", candidates: emptyCandidates(), selectedId: null },
-      script: { status: "todo", candidates: emptyCandidates(), selectedId: null },
+      topic: emptyCandidateNotebook(),
+      hook: emptyCandidateNotebook(),
+      script: emptyCandidateNotebook(),
       title: {
         status: "todo",
         titles: emptyCandidates(),
@@ -87,11 +74,12 @@ export function createProject(input: {
         ],
         selectedId: null,
       },
-      scene: { status: "todo", candidates: emptyCandidates(), selectedId: null },
+      scene: emptyCandidateNotebook(),
       diversity: {
         status: "todo",
-        note: "",
         checks: defaultDiversityChecks(),
+        note: "",
+        monetizationNote: "",
       },
       export: {
         status: "todo",
@@ -101,92 +89,152 @@ export function createProject(input: {
         copyrightNote: "",
       },
     },
+    unlocked: emptyUnlocked(),
   };
 }
 
-// ----- localStorage + migration -----
-const KEY = "shorts-os::projects::v1";
-const CURRENT_KEY = "shorts-os::currentProjectId::v1";
-
-// 기존 v1 프로젝트에 신규 필드를 보강
-function migrate(raw: unknown): Project[] {
-  if (!Array.isArray(raw)) return [];
-  return raw.map((p: any) => {
-    const migrated: Project = {
-      ...p,
-      contentLine: (p.contentLine as ContentLineId) ?? "ai_survival",
-      avoidStyles:
-        p.avoidStyles ??
-        DEFAULT_AVOID_STYLES.map((label) => ({ label, checked: true })),
-      preferredTones:
-        p.preferredTones ??
-        DEFAULT_PREFERRED_TONES.map((label) => ({ label, checked: true })),
-      notebooks: {
-        ...p.notebooks,
-        format: {
-          ...p.notebooks.format,
-          // 기존 포맷 항목에 신규 필드 보강
-          formats: (p.notebooks.format?.formats ?? []).map((f: any) => ({
-            id: f.id ?? uid(),
-            name: f.name ?? "(이름 없음)",
-            structure: f.structure ?? f.description ?? "",
-            suitedLines: f.suitedLines ?? [],
-            pros: f.pros ?? "",
-            risks: f.risks ?? "",
-            variations: f.variations ?? "",
-          })),
-        },
-        diversity: {
-          ...p.notebooks.diversity,
-          checks:
-            p.notebooks.diversity?.checks?.length > 0
-              ? p.notebooks.diversity.checks
-              : defaultDiversityChecks(),
-        },
-        export: {
-          status: p.notebooks.export?.status ?? "todo",
-          editorGuide: p.notebooks.export?.editorGuide ?? "",
-          uploadChecklist: p.notebooks.export?.uploadChecklist ?? [],
-          aiDisclosureNote: p.notebooks.export?.aiDisclosureNote ?? "",
-          copyrightNote: p.notebooks.export?.copyrightNote ?? "",
-        },
-      },
-    };
-    return migrated;
-  });
+export function createSeries(input: {
+  title: string;
+  description: string;
+  contentLineIds: string[];
+  defaultLength: Length;
+  defaultTone: string;
+  defaultScreenStyle: string;
+  avoidStyles: string[];
+}): Series {
+  const now = Date.now();
+  return {
+    id: uid(),
+    title: input.title,
+    description: input.description,
+    contentLineIds: input.contentLineIds.slice(0, 3),
+    defaultLength: input.defaultLength,
+    defaultTone: input.defaultTone,
+    defaultScreenStyle: input.defaultScreenStyle,
+    avoidStyles: input.avoidStyles,
+    trendInbox: {
+      keywords: "",
+      emotions: "",
+      refStructure: "",
+      myAngle: "",
+      avoid: "",
+    },
+    shorts: [],
+    createdAt: now,
+    updatedAt: now,
+  };
 }
 
-export function loadProjects(): Project[] {
-  if (typeof window === "undefined") return [];
+function lineIdByName(lines: ContentLine[]): Record<string, string> {
+  return Object.fromEntries(lines.map((l) => [l.name, l.id]));
+}
+
+export function seedAppState(): AppState {
+  const lines = SEED_CONTENT_LINES.slice();
+  const formats = seedFormats(lineIdByName(lines));
+  const series = createSeries({
+    title: "20대 현실 조언",
+    description:
+      "20대가 지금 무엇을 해야 하는지 현실적으로, 그러나 생각할 거리를 남기는 시리즈.",
+    contentLineIds: [
+      lines.find((l) => l.id === "cl_twenties")!.id,
+    ],
+    defaultLength: "30초",
+    defaultTone: "빠르게 들리지만 끝에는 생각하게 만드는 현실 조언형",
+    defaultScreenStyle: "자막 중심 + 감성 배경 + 빠른 컷",
+    avoidStyles: [
+      "양산형 AI 쇼츠 느낌",
+      "의미 없는 명언 영상",
+      "팩트체크 없는 주장",
+      "자극만 있고 내용 없는 영상",
+      "너무 똑같은 포맷 반복",
+    ],
+  });
+  series.shorts.push(
+    createShort({
+      seriesId: series.id,
+      title: "20대에 무조건 해야 할 것 TOP3",
+      sourceType: "blank",
+      isDraft: true,
+    }),
+  );
+  return {
+    schemaVersion: 2,
+    series: [series],
+    contentLines: lines,
+    ideas: [],
+    formats,
+    lastSavedAt: 0,
+  };
+}
+
+export function loadAppState(): AppState {
+  if (typeof window === "undefined") return seedAppState();
   try {
     const raw = localStorage.getItem(KEY);
-    return raw ? migrate(JSON.parse(raw)) : [];
-  } catch {
-    return [];
+    if (raw) {
+      const parsed = JSON.parse(raw) as AppState;
+      if (parsed?.schemaVersion === 2) return normalize(parsed);
+    }
+    // v1 → v2 폐기성 마이그레이션: 시드 + 안내
+    const legacy = localStorage.getItem(LEGACY_KEY_V1);
+    if (legacy) {
+      // 구조가 너무 달라 자동 변환 대신 백업 키로 보존
+      localStorage.setItem("shorts-os::projects::v1.backup", legacy);
+    }
+  } catch {}
+  return seedAppState();
+}
+
+function normalize(s: AppState): AppState {
+  // 보강: 없는 필드 채우기
+  return {
+    ...s,
+    contentLines: s.contentLines?.length ? s.contentLines : SEED_CONTENT_LINES.slice(),
+    ideas: s.ideas ?? [],
+    formats: s.formats ?? [],
+    series: (s.series ?? []).map((se) => ({
+      ...se,
+      contentLineIds: se.contentLineIds ?? [],
+      avoidStyles: se.avoidStyles ?? DEFAULT_AVOID_STYLES,
+      trendInbox: se.trendInbox ?? {
+        keywords: "",
+        emotions: "",
+        refStructure: "",
+        myAngle: "",
+        avoid: "",
+      },
+      shorts: (se.shorts ?? []).map((sh) => ({
+        ...sh,
+        unlocked: sh.unlocked ?? emptyUnlocked(),
+      })),
+    })),
+  };
+}
+
+export function saveAppState(state: AppState) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(KEY, JSON.stringify(state));
+  } catch (e) {
+    console.error("save failed", e);
   }
 }
 
-export function saveProjects(projects: Project[]) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(KEY, JSON.stringify(projects));
+export function exportBackup(state: AppState): string {
+  return JSON.stringify(state, null, 2);
 }
 
-export function loadCurrentId(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem(CURRENT_KEY);
+export function importBackup(json: string): AppState {
+  const parsed = JSON.parse(json) as AppState;
+  if (parsed?.schemaVersion !== 2) throw new Error("스키마 버전이 다릅니다");
+  return normalize(parsed);
 }
 
-export function saveCurrentId(id: string | null) {
-  if (typeof window === "undefined") return;
-  if (id) localStorage.setItem(CURRENT_KEY, id);
-  else localStorage.removeItem(CURRENT_KEY);
-}
-
-import { NOTEBOOK_ORDER } from "./types";
-
-export function notebookProgress(project: Project) {
+// ----- 진행률/잠금 -----
+export function notebookProgress(s: Short) {
   const done = NOTEBOOK_ORDER.filter(
-    (id) => project.notebooks[id].status === "done",
+    (id) => s.notebooks[id].status === "done",
   ).length;
   return {
     done,
@@ -195,16 +243,29 @@ export function notebookProgress(project: Project) {
   };
 }
 
-export function isLocked(project: Project, id: NotebookId): boolean {
-  if (project.unlocked[id]) return false;
+export function isLocked(s: Short, id: NotebookId): boolean {
+  if (s.unlocked[id]) return false;
   const idx = NOTEBOOK_ORDER.indexOf(id);
   if (idx <= 0) return false;
   const prev = NOTEBOOK_ORDER[idx - 1];
-  return project.notebooks[prev].status !== "done";
+  return s.notebooks[prev].status !== "done";
 }
 
-export function nextStep(project: Project): NotebookId | null {
+export function nextStep(s: Short): NotebookId | null {
   return (
-    NOTEBOOK_ORDER.find((id) => project.notebooks[id].status !== "done") ?? null
+    NOTEBOOK_ORDER.find((id) => s.notebooks[id].status !== "done") ?? null
   );
+}
+
+export function seriesStats(s: Series) {
+  const total = s.shorts.length;
+  const done = s.shorts.filter(
+    (sh) => sh.notebooks.export.status === "done",
+  ).length;
+  const inProgress = s.shorts.filter(
+    (sh) =>
+      sh.notebooks.export.status !== "done" &&
+      NOTEBOOK_ORDER.some((id) => sh.notebooks[id].status !== "todo"),
+  ).length;
+  return { total, done, inProgress };
 }
