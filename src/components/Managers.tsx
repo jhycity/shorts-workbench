@@ -13,7 +13,6 @@ import { Button } from "@/components/ui/button";
 import { useApp } from "@/lib/app-context";
 import { Plus, Trash2 } from "lucide-react";
 import type { ContentLine, Format, Idea } from "@/lib/types";
-import type { ContentLine, Format, Idea } from "@/lib/types";
 
 // ===================== Content Lines =====================
 export function ContentLinesManager({
