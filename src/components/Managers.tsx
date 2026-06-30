@@ -507,6 +507,3 @@ function MultiSelect({
     </div>
   );
 }
-
-// 컴포넌트 사용처 위한 더미 export (사용 안 함)
-export const _unused = (_: Badge | Checkbox) => null;
