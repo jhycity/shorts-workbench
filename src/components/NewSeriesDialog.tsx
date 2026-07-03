@@ -46,20 +46,12 @@ export function NewSeriesDialog({ open, onOpenChange, onCreated }: Props) {
     });
   };
 
-  const toggleAvoid = (label: string) => {
-    setAvoid((cur) =>
-      cur.includes(label) ? cur.filter((x) => x !== label) : [...cur, label],
-    );
-  };
-
   const reset = () => {
     setTitle("");
     setDescription("");
     setContentLineIds([]);
     setDefaultLength("30초");
     setDefaultTone("");
-    setDefaultScreenStyle("");
-    setAvoid(DEFAULT_AVOID_STYLES);
   };
 
   const submit = () => {
@@ -70,8 +62,8 @@ export function NewSeriesDialog({ open, onOpenChange, onCreated }: Props) {
       contentLineIds,
       defaultLength,
       defaultTone: defaultTone.trim(),
-      defaultScreenStyle: defaultScreenStyle.trim(),
-      avoidStyles: avoid,
+      defaultScreenStyle: "",
+      avoidStyles: DEFAULT_AVOID_STYLES,
     });
     addSeries(se);
     onCreated?.(se.id);
