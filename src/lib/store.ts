@@ -132,35 +132,9 @@ function lineIdByName(lines: ContentLine[]): Record<string, string> {
 export function seedAppState(): AppState {
   const lines = SEED_CONTENT_LINES.slice();
   const formats = seedFormats(lineIdByName(lines));
-  const series = createSeries({
-    title: "20대 현실 조언",
-    description:
-      "20대가 지금 무엇을 해야 하는지 현실적으로, 그러나 생각할 거리를 남기는 시리즈.",
-    contentLineIds: [
-      lines.find((l) => l.id === "cl_twenties")!.id,
-    ],
-    defaultLength: "30초",
-    defaultTone: "빠르게 들리지만 끝에는 생각하게 만드는 현실 조언형",
-    defaultScreenStyle: "자막 중심 + 감성 배경 + 빠른 컷",
-    avoidStyles: [
-      "양산형 AI 쇼츠 느낌",
-      "의미 없는 명언 영상",
-      "팩트체크 없는 주장",
-      "자극만 있고 내용 없는 영상",
-      "너무 똑같은 포맷 반복",
-    ],
-  });
-  series.shorts.push(
-    createShort({
-      seriesId: series.id,
-      title: "20대에 무조건 해야 할 것 TOP3",
-      sourceType: "blank",
-      isDraft: true,
-    }),
-  );
   return {
     schemaVersion: 2,
-    series: [series],
+    series: [],
     contentLines: lines,
     ideas: [],
     formats,

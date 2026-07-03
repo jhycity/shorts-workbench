@@ -15,7 +15,6 @@ import { useApp } from "@/lib/app-context";
 import { createSeries } from "@/lib/store";
 import type { Length } from "@/lib/types";
 import { DEFAULT_AVOID_STYLES } from "@/lib/types";
-import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 
 interface Props {
@@ -33,8 +32,6 @@ export function NewSeriesDialog({ open, onOpenChange, onCreated }: Props) {
   const [contentLineIds, setContentLineIds] = useState<string[]>([]);
   const [defaultLength, setDefaultLength] = useState<Length>("30초");
   const [defaultTone, setDefaultTone] = useState("");
-  const [defaultScreenStyle, setDefaultScreenStyle] = useState("");
-  const [avoid, setAvoid] = useState<string[]>(DEFAULT_AVOID_STYLES);
 
   const toggleLine = (id: string) => {
     setContentLineIds((cur) => {
@@ -49,20 +46,12 @@ export function NewSeriesDialog({ open, onOpenChange, onCreated }: Props) {
     });
   };
 
-  const toggleAvoid = (label: string) => {
-    setAvoid((cur) =>
-      cur.includes(label) ? cur.filter((x) => x !== label) : [...cur, label],
-    );
-  };
-
   const reset = () => {
     setTitle("");
     setDescription("");
     setContentLineIds([]);
     setDefaultLength("30초");
     setDefaultTone("");
-    setDefaultScreenStyle("");
-    setAvoid(DEFAULT_AVOID_STYLES);
   };
 
   const submit = () => {
@@ -73,8 +62,8 @@ export function NewSeriesDialog({ open, onOpenChange, onCreated }: Props) {
       contentLineIds,
       defaultLength,
       defaultTone: defaultTone.trim(),
-      defaultScreenStyle: defaultScreenStyle.trim(),
-      avoidStyles: avoid,
+      defaultScreenStyle: "",
+      avoidStyles: DEFAULT_AVOID_STYLES,
     });
     addSeries(se);
     onCreated?.(se.id);
@@ -177,33 +166,9 @@ export function NewSeriesDialog({ open, onOpenChange, onCreated }: Props) {
             />
           </div>
 
-          <div className="grid gap-2">
-            <Label>기본 화면 스타일</Label>
-            <Input
-              placeholder="예: 자막 중심 + 감성 배경 + 빠른 컷"
-              value={defaultScreenStyle}
-              onChange={(e) => setDefaultScreenStyle(e.target.value)}
-            />
-          </div>
-
-          <div className="grid gap-2">
-            <Label>이 노트북에서 피하고 싶은 스타일</Label>
-            <div className="grid gap-1.5 sm:grid-cols-2">
-              {DEFAULT_AVOID_STYLES.map((label) => (
-                <label
-                  key={label}
-                  className="flex items-start gap-2 rounded-md border bg-card p-2 text-sm"
-                >
-                  <Checkbox
-                    checked={avoid.includes(label)}
-                    onCheckedChange={() => toggleAvoid(label)}
-                    className="mt-0.5"
-                  />
-                  <span>{label}</span>
-                </label>
-              ))}
-            </div>
-          </div>
+          <p className="text-xs text-muted-foreground">
+            피하고 싶은 스타일은 최종 단계의 <b>다양성/원본성 체크</b>에서 관리해요.
+          </p>
         </div>
 
         <DialogFooter>
