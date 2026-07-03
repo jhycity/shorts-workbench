@@ -32,8 +32,6 @@ export function NewSeriesDialog({ open, onOpenChange, onCreated }: Props) {
   const [contentLineIds, setContentLineIds] = useState<string[]>([]);
   const [defaultLength, setDefaultLength] = useState<Length>("30초");
   const [defaultTone, setDefaultTone] = useState("");
-  const [defaultScreenStyle, setDefaultScreenStyle] = useState("");
-  const [avoid, setAvoid] = useState<string[]>(DEFAULT_AVOID_STYLES);
 
   const toggleLine = (id: string) => {
     setContentLineIds((cur) => {
