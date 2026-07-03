@@ -15,7 +15,6 @@ import { useApp } from "@/lib/app-context";
 import { createSeries } from "@/lib/store";
 import type { Length } from "@/lib/types";
 import { DEFAULT_AVOID_STYLES } from "@/lib/types";
-import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 
 interface Props {
