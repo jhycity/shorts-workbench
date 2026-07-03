@@ -166,33 +166,9 @@ export function NewSeriesDialog({ open, onOpenChange, onCreated }: Props) {
             />
           </div>
 
-          <div className="grid gap-2">
-            <Label>기본 화면 스타일</Label>
-            <Input
-              placeholder="예: 자막 중심 + 감성 배경 + 빠른 컷"
-              value={defaultScreenStyle}
-              onChange={(e) => setDefaultScreenStyle(e.target.value)}
-            />
-          </div>
-
-          <div className="grid gap-2">
-            <Label>이 노트북에서 피하고 싶은 스타일</Label>
-            <div className="grid gap-1.5 sm:grid-cols-2">
-              {DEFAULT_AVOID_STYLES.map((label) => (
-                <label
-                  key={label}
-                  className="flex items-start gap-2 rounded-md border bg-card p-2 text-sm"
-                >
-                  <Checkbox
-                    checked={avoid.includes(label)}
-                    onCheckedChange={() => toggleAvoid(label)}
-                    className="mt-0.5"
-                  />
-                  <span>{label}</span>
-                </label>
-              ))}
-            </div>
-          </div>
+          <p className="text-xs text-muted-foreground">
+            피하고 싶은 스타일은 최종 단계의 <b>다양성/원본성 체크</b>에서 관리해요.
+          </p>
         </div>
 
         <DialogFooter>
