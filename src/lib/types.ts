@@ -1,20 +1,19 @@
-// 쇼츠 자동 제작 OS — v2 (시리즈 → 쇼츠)
+// 쇼츠 자동 제작 OS — v3 (키워드 노트북 → 하위 노트북 → 쇼츠)
 
 export type NotebookId =
+  | "source"
   | "topic"
   | "hook"
   | "script"
   | "title"
-  | "voice"
-  | "scene"
-  | "diversity"
-  | "export";
+  | "guide"
+  | "finalize";
 
 export type NotebookStatus = "todo" | "in_progress" | "done";
 
 export type Length = "30초" | "60초";
 
-// 사용자 편집 가능한 콘텐츠 라인
+// 콘텐츠 라인 (하위 호환용 — 새 UI에서는 노출 안 함)
 export interface ContentLine {
   id: string;
   name: string;
@@ -32,11 +31,12 @@ export interface Idea {
   id: string;
   title: string;
   description: string;
-  contentLineIds: string[];
+  contentLineIds: string[]; // 하위호환용
   formatIds: string[];
   reason: string;
   refKeywords: string;
   pinnedSeriesId?: string;
+  pinnedSubNotebookId?: string;
   createdAt: number;
 }
 
@@ -52,7 +52,6 @@ export interface Format {
   isCustom?: boolean;
 }
 
-// 시리즈 내 트렌드 입력함
 export interface TrendInbox {
   keywords: string;
   emotions: string;
@@ -86,107 +85,165 @@ export interface DiversityCheck {
   checked: boolean;
 }
 
-export interface DiversityNotebookData {
+// STEP 1: 재료 확인 (읽기 전용 뷰지만 상태는 저장)
+export interface SourceNotebookData {
   status: NotebookStatus;
-  checks: DiversityCheck[];
   note: string;
-  monetizationNote: string;
 }
 
-export interface ExportNotebookData {
+// STEP 6: 제작 가이드
+export interface GuideNotebookData {
   status: NotebookStatus;
-  editorGuide: string;
-  uploadChecklist: string[];
-  aiDisclosureNote: string;
+  tts: string;
+  subtitleTempo: string;
+  screenStyle: string;
+  sceneComposition: string;
+  brollIdeas: string;
+  editorNote: string;
+}
+
+// STEP 7: 원본성/수익화 + 최종 내보내기
+export interface FinalizeNotebookData {
+  status: NotebookStatus;
+  checks: DiversityCheck[];
   copyrightNote: string;
+  aiDisclosureNote: string;
+  myTakeNote: string;
+  factCheckNote: string;
+  uploadTitle: string;
+  uploadDescription: string;
+  uploadHashtags: string;
+}
+
+export type MaterialKind = "trend" | "idea" | "format" | "custom";
+export interface Material {
+  id: string;
+  kind: MaterialKind;
+  ref?: string; // ideaId / formatId
+  note?: string; // custom text
 }
 
 export interface Short {
   id: string;
   seriesId: string;
+  subNotebookId?: string;
   title: string;
-  sourceType: "trend" | "idea" | "format" | "blank";
+  sourceType: "trend" | "idea" | "format" | "blank"; // 하위호환 (첫 재료)
   sourceRef?: string;
+  materials: Material[];
   isDraft?: boolean;
   createdAt: number;
   updatedAt: number;
   notebooks: {
+    source: SourceNotebookData;
     topic: CandidateNotebook;
     hook: CandidateNotebook;
     script: CandidateNotebook;
     title: TitleNotebookData;
-    voice: CandidateNotebook;
-    scene: CandidateNotebook;
-    diversity: DiversityNotebookData;
-    export: ExportNotebookData;
+    guide: GuideNotebookData;
+    finalize: FinalizeNotebookData;
   };
   unlocked: Record<NotebookId, boolean>;
+}
+
+export interface SubNotebook {
+  id: string;
+  name: string;
+  description: string;
+  createdAt: number;
 }
 
 export interface Series {
   id: string;
   title: string;
   description: string;
-  contentLineIds: string[]; // 최대 3개
+  tags: string[]; // 최대 3
   defaultLength: Length;
   defaultTone: string;
   defaultScreenStyle: string;
-  avoidStyles: string[];
+  defaultFormatId?: string;
+  defaultVoice?: string;
+  defaultSubtitleStyle?: string;
+  subNotebooks: SubNotebook[];
   trendInbox: TrendInbox;
   shorts: Short[];
+  // legacy
+  contentLineIds?: string[];
+  avoidStyles?: string[];
   createdAt: number;
   updatedAt: number;
 }
 
 export interface AppState {
-  schemaVersion: 2;
+  schemaVersion: 3;
   series: Series[];
-  contentLines: ContentLine[];
+  contentLines: ContentLine[]; // legacy — 유지만
   ideas: Idea[];
   formats: Format[];
   lastSavedAt: number;
 }
 
 export const NOTEBOOK_ORDER: NotebookId[] = [
+  "source",
   "topic",
   "hook",
   "script",
   "title",
-  "voice",
-  "scene",
-  "diversity",
-  "export",
+  "guide",
+  "finalize",
 ];
 
 export const NOTEBOOK_META: Record<
   NotebookId,
   { title: string; subtitle: string; icon: string }
 > = {
-  topic: { title: "주제 선택", subtitle: "주제 후보 3개 중 하나", icon: "🎯" },
-  hook: { title: "후킹 선택", subtitle: "첫 1~2초 문장 후보 3개", icon: "🪝" },
-  script: { title: "대본 선택", subtitle: "분량 대본 후보 3개", icon: "📝" },
+  source: {
+    title: "재료 확인",
+    subtitle: "이 쇼츠에 어떤 재료를 골랐는지 정리",
+    icon: "🧺",
+  },
+  topic: { title: "주제 후보", subtitle: "주제 후보 A/B/C 중 하나", icon: "🎯" },
+  hook: { title: "후킹 후보", subtitle: "첫 1~2초 문장 A/B/C", icon: "🪝" },
+  script: { title: "대본 후보", subtitle: "분량 대본 A/B/C", icon: "📝" },
   title: {
-    title: "제목/썸네일 선택",
-    subtitle: "제목 3개 · 썸네일 문구 3개",
+    title: "제목/썸네일 후보",
+    subtitle: "제목 A/B/C · 썸네일 문구 A/B/C",
     icon: "🖼️",
   },
-  voice: { title: "목소리 선택", subtitle: "TTS 톤 후보 3개", icon: "🎙️" },
-  scene: {
-    title: "장면 구성 선택",
-    subtitle: "자막 · B-roll · 화면 흐름",
-    icon: "🎬",
+  guide: {
+    title: "제작 가이드",
+    subtitle: "TTS · 자막 · 화면 · 장면 · B-roll · 편집 메모",
+    icon: "🎛️",
   },
-  diversity: {
-    title: "다양성 / 원본성 / 수익화 체크",
-    subtitle: "반복 · 저작권 · 수익화 위험 점검",
-    icon: "🛡️",
-  },
-  export: {
-    title: "최종 내보내기",
-    subtitle: "선택값을 한 번에 패키지로",
+  finalize: {
+    title: "원본성/수익화 체크 · 최종 내보내기",
+    subtitle: "위험 점검 + 편집툴에 넣을 최종 패키지",
     icon: "📦",
   },
 };
+
+export const TAG_SUGGESTIONS = [
+  "AI",
+  "20대",
+  "뉴스",
+  "ASMR",
+  "동물",
+  "힙합",
+  "책/지식",
+  "게임",
+  "트렌드",
+  "밈",
+  "힐링",
+  "재테크",
+];
+
+export const SCREEN_STYLE_SUGGESTIONS = [
+  "자막 중심",
+  "AI 이미지 중심",
+  "실사 B-roll 중심",
+  "ASMR/풍경 중심",
+  "카드 뉴스형",
+];
 
 export const DEFAULT_AVOID_STYLES = [
   "양산형 AI 쇼츠 느낌",
