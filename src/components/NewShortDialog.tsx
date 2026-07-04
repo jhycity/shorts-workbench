@@ -13,48 +13,77 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useApp } from "@/lib/app-context";
 import { createShort } from "@/lib/store";
-import type { Series, Short } from "@/lib/types";
+import { uid } from "@/lib/presets";
+import type { Material, Series } from "@/lib/types";
+import { toast } from "sonner";
 
-type Source = Short["sourceType"];
+const MAX_MATERIALS = 3;
 
 export function NewShortDialog({
   open,
   onOpenChange,
   series,
+  subNotebookId,
   onCreated,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   series: Series;
+  subNotebookId?: string;
   onCreated: (id: string) => void;
 }) {
   const { state, addShort } = useApp();
-  const [source, setSource] = useState<Source>("trend");
+  const [materials, setMaterials] = useState<Material[]>([]);
   const [title, setTitle] = useState("");
-  const [sourceRef, setSourceRef] = useState<string | undefined>();
+  const [selectedSub, setSelectedSub] = useState<string>(subNotebookId ?? "");
+  const [customText, setCustomText] = useState("");
   const [isDraft, setIsDraft] = useState(true);
 
   const relevantIdeas = state.ideas.filter(
     (i) =>
       i.pinnedSeriesId === series.id ||
-      i.contentLineIds.some((id) => series.contentLineIds.includes(id)),
+      i.pinnedSubNotebookId === (subNotebookId ?? selectedSub),
   );
-  const relevantFormats = state.formats.filter((f) =>
-    f.contentLineIds.some((id) => series.contentLineIds.includes(id)),
-  );
+  const availableFormats = state.formats;
+
+  const addMaterial = (m: Omit<Material, "id">) => {
+    setMaterials((cur) => {
+      if (cur.length >= MAX_MATERIALS) {
+        toast.warning(
+          "조합이 너무 많으면 결과가 흐려질 수 있어요. 핵심 재료 3개까지만 선택하세요.",
+        );
+        return cur;
+      }
+      // duplicate check for trend / same ref
+      if (m.kind === "trend" && cur.some((c) => c.kind === "trend")) return cur;
+      if (m.ref && cur.some((c) => c.ref === m.ref)) return cur;
+      return [...cur, { id: uid(), ...m }];
+    });
+  };
+
+  const removeMaterial = (id: string) =>
+    setMaterials((cur) => cur.filter((m) => m.id !== id));
 
   const submit = () => {
     if (!title.trim()) return;
+    const primary = materials[0];
+    const sourceType: Parameters<typeof createShort>[0]["sourceType"] =
+      primary?.kind === "custom"
+        ? "blank"
+        : primary?.kind ?? "blank";
     const sh = createShort({
       seriesId: series.id,
+      subNotebookId: (subNotebookId ?? selectedSub) || undefined,
       title: title.trim(),
-      sourceType: source,
-      sourceRef,
+      sourceType,
+      sourceRef: primary?.ref,
+      materials,
       isDraft,
     });
     addShort(sh);
     setTitle("");
-    setSourceRef(undefined);
+    setMaterials([]);
+    setCustomText("");
     onCreated(sh.id);
     onOpenChange(false);
   };
@@ -65,99 +94,131 @@ export function NewShortDialog({
         <DialogHeader>
           <DialogTitle>새 쇼츠 만들기</DialogTitle>
           <DialogDescription>
-            이 쇼츠를 어디서부터 시작할지 골라주세요.
+            이 쇼츠를 만들 재료를 최대 3개까지 조합할 수 있어요.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-2 sm:grid-cols-2 mb-4">
-          {(
-            [
-              ["trend", "📥 트렌드 입력함에서", "이 시리즈의 트렌드 메모를 기반으로"],
-              ["idea", "💡 아이디어 보관함에서", "저장된 아이디어를 발판으로"],
-              ["format", "📚 포맷 라이브러리에서", "검증된 포맷 구조부터 시작"],
-              ["blank", "✨ 빈 상태에서", "아무것도 없이 직접 다 채움"],
-            ] as [Source, string, string][]
-          ).map(([id, label, desc]) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setSource(id)}
-              className={`text-left rounded-lg border p-3 transition ${
-                source === id
-                  ? "border-primary bg-accent ring-2 ring-primary/30"
-                  : "border-border hover:bg-muted"
-              }`}
+        {!subNotebookId && (series.subNotebooks?.length ?? 0) > 0 && (
+          <div className="mb-3">
+            <Label className="text-xs">하위 노트북 (선택)</Label>
+            <select
+              className="mt-1 w-full rounded-md border bg-background px-2 py-1.5 text-sm"
+              value={selectedSub}
+              onChange={(e) => setSelectedSub(e.target.value)}
             >
-              <div className="font-semibold text-sm">{label}</div>
-              <div className="text-[11px] text-muted-foreground mt-0.5">
-                {desc}
-              </div>
-            </button>
-          ))}
+              <option value="">(하위 노트북 없이)</option>
+              {series.subNotebooks!.map((sb) => (
+                <option key={sb.id} value={sb.id}>
+                  {sb.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* Selected materials */}
+        <div className="mb-3">
+          <Label className="text-xs">
+            선택된 재료 · {materials.length}/{MAX_MATERIALS}
+          </Label>
+          <div className="mt-1 min-h-8 flex flex-wrap gap-1.5">
+            {materials.length === 0 && (
+              <span className="text-xs text-muted-foreground">
+                아래에서 재료를 골라 조합하세요.
+              </span>
+            )}
+            {materials.map((m) => (
+              <Badge
+                key={m.id}
+                variant="secondary"
+                className="gap-1 cursor-pointer"
+                onClick={() => removeMaterial(m.id)}
+              >
+                {materialLabel(m, state)} ×
+              </Badge>
+            ))}
+          </div>
         </div>
 
-        {source === "idea" && (
-          <div className="mb-4">
-            <Label className="text-xs">아이디어 선택 (선택사항)</Label>
-            <div className="mt-1 max-h-40 overflow-y-auto space-y-1">
-              {relevantIdeas.length === 0 ? (
-                <p className="text-xs text-muted-foreground">
-                  이 시리즈에 어울리는 아이디어가 보관함에 없어요.
-                </p>
-              ) : (
-                relevantIdeas.map((i) => (
+        <div className="grid gap-3 mb-4">
+          {/* 트렌드 */}
+          <div className="rounded-lg border p-2.5">
+            <div className="text-xs font-semibold mb-1.5">📥 트렌드 입력에서</div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => addMaterial({ kind: "trend" })}
+            >
+              이 노트북 트렌드 입력함 사용
+            </Button>
+          </div>
+          {/* 아이디어 */}
+          <div className="rounded-lg border p-2.5">
+            <div className="text-xs font-semibold mb-1.5">💡 저장된 아이디어에서</div>
+            {relevantIdeas.length === 0 ? (
+              <p className="text-[11px] text-muted-foreground">
+                이 노트북에 저장된 아이디어가 없어요.
+              </p>
+            ) : (
+              <div className="max-h-32 overflow-y-auto space-y-1">
+                {relevantIdeas.map((i) => (
                   <button
                     key={i.id}
                     type="button"
                     onClick={() => {
-                      setSourceRef(i.id);
+                      addMaterial({ kind: "idea", ref: i.id });
                       if (!title) setTitle(i.title);
                     }}
-                    className={`block w-full text-left rounded-md border p-2 text-xs ${
-                      sourceRef === i.id ? "border-primary bg-accent" : "bg-card"
-                    }`}
+                    className="block w-full text-left rounded-md border bg-card p-1.5 text-xs hover:bg-muted"
                   >
                     <div className="font-medium">{i.title}</div>
-                    {i.description && (
-                      <div className="text-muted-foreground line-clamp-2">
-                        {i.description}
-                      </div>
-                    )}
                   </button>
-                ))
-              )}
+                ))}
+              </div>
+            )}
+          </div>
+          {/* 포맷 */}
+          <div className="rounded-lg border p-2.5">
+            <div className="text-xs font-semibold mb-1.5">📚 포맷 라이브러리에서</div>
+            <div className="max-h-32 overflow-y-auto space-y-1">
+              {availableFormats.map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => addMaterial({ kind: "format", ref: f.id })}
+                  className="block w-full text-left rounded-md border bg-card p-1.5 text-xs hover:bg-muted"
+                >
+                  <div className="font-medium">{f.name}</div>
+                </button>
+              ))}
             </div>
           </div>
-        )}
-
-        {source === "format" && (
-          <div className="mb-4">
-            <Label className="text-xs">포맷 선택 (선택사항)</Label>
-            <div className="mt-1 max-h-40 overflow-y-auto space-y-1">
-              {relevantFormats.length === 0 ? (
-                <p className="text-xs text-muted-foreground">
-                  이 시리즈에 매핑된 포맷이 없어요. 포맷 라이브러리에서 콘텐츠라인을 연결해보세요.
-                </p>
-              ) : (
-                relevantFormats.map((f) => (
-                  <button
-                    key={f.id}
-                    type="button"
-                    onClick={() => setSourceRef(f.id)}
-                    className={`block w-full text-left rounded-md border p-2 text-xs ${
-                      sourceRef === f.id ? "border-primary bg-accent" : "bg-card"
-                    }`}
-                  >
-                    <div className="font-medium">{f.name}</div>
-                    <div className="text-muted-foreground line-clamp-2">
-                      {f.structure}
-                    </div>
-                  </button>
-                ))
-              )}
+          {/* Custom */}
+          <div className="rounded-lg border p-2.5">
+            <div className="text-xs font-semibold mb-1.5">✏️ 직접 입력해서</div>
+            <div className="flex gap-2">
+              <Input
+                className="h-8 text-xs"
+                placeholder="예: 발로란트 초보 멘탈 관리"
+                value={customText}
+                onChange={(e) => setCustomText(e.target.value)}
+              />
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  if (!customText.trim()) return;
+                  addMaterial({ kind: "custom", note: customText.trim() });
+                  setCustomText("");
+                }}
+              >
+                추가
+              </Button>
             </div>
           </div>
-        )}
+        </div>
 
         <div className="grid gap-2 mb-3">
           <Label>쇼츠 제목</Label>
@@ -175,9 +236,6 @@ export function NewShortDialog({
             onChange={(e) => setIsDraft(e.target.checked)}
           />
           작성 중인 임시 저장 상태로 시작
-          <Badge variant="secondary" className="text-[10px]">
-            언제든 변경 가능
-          </Badge>
         </label>
 
         <DialogFooter className="mt-4">
@@ -191,4 +249,13 @@ export function NewShortDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+function materialLabel(m: Material, state: ReturnType<typeof useApp>["state"]) {
+  if (m.kind === "trend") return "📥 트렌드";
+  if (m.kind === "idea")
+    return `💡 ${state.ideas.find((i) => i.id === m.ref)?.title ?? "아이디어"}`;
+  if (m.kind === "format")
+    return `📚 ${state.formats.find((f) => f.id === m.ref)?.name ?? "포맷"}`;
+  return `✏️ ${m.note ?? "직접 입력"}`;
 }
