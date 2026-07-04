@@ -1,15 +1,14 @@
 import { useMemo, useState } from "react";
 import { useApp } from "@/lib/app-context";
 import type { NotebookId, Series, Short } from "@/lib/types";
-import {
-  NOTEBOOK_META,
-  NOTEBOOK_ORDER,
-} from "@/lib/types";
+import { NOTEBOOK_META, NOTEBOOK_ORDER } from "@/lib/types";
 import { isLocked, nextStep, notebookProgress } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -30,6 +29,7 @@ import {
   Unlock,
 } from "lucide-react";
 import { CandidatePicker } from "./notebooks/Shared";
+import { STEP_EXAMPLES } from "@/lib/presets";
 import { toast } from "sonner";
 
 export function ShortView({
@@ -58,23 +58,24 @@ export function ShortView({
     );
   }
 
+  const subNb = series.subNotebooks?.find((s) => s.id === short.subNotebookId);
+
   return (
     <div className="mx-auto max-w-6xl px-6 py-8">
       <button
         onClick={onBack}
         className="text-sm text-muted-foreground hover:text-foreground mb-2"
       >
-        ← 시리즈로 돌아가기
+        ← 노트북으로 돌아가기
       </button>
       <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">{short.title}</h1>
           <div className="mt-2 flex flex-wrap gap-1">
-            <Badge variant="outline">시리즈: {series.title}</Badge>
+            <Badge variant="outline">노트북: {series.title}</Badge>
+            {subNb && <Badge variant="outline">하위: {subNb.name}</Badge>}
             <Badge variant="secondary">{series.defaultLength}</Badge>
-            {short.isDraft && (
-              <Badge variant="secondary">임시 저장</Badge>
-            )}
+            {short.isDraft && <Badge variant="secondary">임시 저장</Badge>}
           </div>
         </div>
         <div className="flex gap-1">
@@ -269,32 +270,43 @@ function NotebookView({
       <div className="rounded-xl border bg-paper p-6 shadow-sm">
         {(() => {
           switch (notebookId) {
+            case "source":
+              return <SourceView series={series} short={short} onChange={(v) => patch("source", { ...nb.source, note: v })} />;
             case "topic":
               return (
-                <CandidatePicker
-                  description="이번 영상의 주제 후보 3개를 적고 하나를 고르세요."
-                  placeholder="예: AI 시대에 20대가 잃지 말아야 할 한 가지"
-                  data={nb.topic}
-                  onChange={(d) => patch("topic", d)}
-                />
+                <>
+                  <ExampleBox items={STEP_EXAMPLES.topic} />
+                  <CandidatePicker
+                    description="이번 영상의 주제 후보 3개를 적고 하나를 고르세요."
+                    placeholder="예: AI 시대에 20대가 잃지 말아야 할 한 가지"
+                    data={nb.topic}
+                    onChange={(d) => patch("topic", d)}
+                  />
+                </>
               );
             case "hook":
               return (
-                <CandidatePicker
-                  description="첫 1~2초에 시청자를 잡을 후킹 문장 3개."
-                  placeholder="예: '이거 모르면 1년이 사라집니다.'"
-                  data={nb.hook}
-                  onChange={(d) => patch("hook", d)}
-                />
+                <>
+                  <ExampleBox items={STEP_EXAMPLES.hook} />
+                  <CandidatePicker
+                    description="첫 1~2초에 시청자를 잡을 후킹 문장 3개."
+                    placeholder="예: '이거 모르면 1년이 사라집니다.'"
+                    data={nb.hook}
+                    onChange={(d) => patch("hook", d)}
+                  />
+                </>
               );
             case "script":
               return (
-                <CandidatePicker
-                  description={`${series.defaultLength} 분량 대본 후보 3개. 줄바꿈을 자연스럽게 넣어주세요.`}
-                  placeholder={"후킹 →\n본문 →\n반전/정리 →\n클로징"}
-                  data={nb.script}
-                  onChange={(d) => patch("script", d)}
-                />
+                <>
+                  <ExampleBox items={STEP_EXAMPLES.script} />
+                  <CandidatePicker
+                    description={`${series.defaultLength} 분량 대본 후보 3개.`}
+                    placeholder={"후킹 →\n본문 →\n반전/정리 →\n클로징"}
+                    data={nb.script}
+                    onChange={(d) => patch("script", d)}
+                  />
+                </>
               );
             case "title":
               return (
@@ -339,81 +351,22 @@ function NotebookView({
                   </TabsContent>
                 </Tabs>
               );
-            case "voice":
+            case "guide":
               return (
-                <CandidatePicker
-                  description="TTS 목소리 톤 후보 3개. 원하면 직접 수정하세요."
-                  placeholder="예: 차분한 남자 저음"
-                  data={nb.voice}
-                  onChange={(d) => patch("voice", d)}
+                <GuideEditor
+                  series={series}
+                  data={nb.guide}
+                  onChange={(d) => patch("guide", d)}
                 />
               );
-            case "scene":
+            case "finalize":
               return (
-                <CandidatePicker
-                  description="자막 · B-roll · 이미지 · 화면 흐름 구성 후보 3개."
-                  placeholder={
-                    "0~2초: 후킹 자막 크게\n2~10초: B-roll(도시 새벽)\n10초~: 인터뷰풍 자막"
-                  }
-                  data={nb.scene}
-                  onChange={(d) => patch("scene", d)}
+                <FinalizeEditor
+                  series={series}
+                  short={short}
+                  onChange={(d) => patch("finalize", d)}
                 />
               );
-            case "diversity":
-              return (
-                <div className="space-y-4">
-                  <ul className="space-y-2">
-                    {nb.diversity.checks.map((c) => (
-                      <li
-                        key={c.id}
-                        className="flex items-start gap-3 rounded-md border bg-card p-3"
-                      >
-                        <Checkbox
-                          checked={c.checked}
-                          onCheckedChange={(v) =>
-                            patch("diversity", {
-                              ...nb.diversity,
-                              checks: nb.diversity.checks.map((x) =>
-                                x.id === c.id ? { ...x, checked: !!v } : x,
-                              ),
-                            })
-                          }
-                          className="mt-0.5"
-                        />
-                        <span className="text-sm">{c.label}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <div>
-                    <div className="text-sm font-semibold mb-1">
-                      수익화 위험 메모
-                    </div>
-                    <Textarea
-                      rows={3}
-                      value={nb.diversity.monetizationNote}
-                      onChange={(e) =>
-                        patch("diversity", {
-                          ...nb.diversity,
-                          monetizationNote: e.target.value,
-                        })
-                      }
-                      placeholder="예: 폭력적 표현/논란 주제 없음. AI 인물 1컷 등장 → 공개 표기 예정."
-                    />
-                  </div>
-                  <div>
-                    <div className="text-sm font-semibold mb-1">추가 메모</div>
-                    <Textarea
-                      rows={2}
-                      value={nb.diversity.note}
-                      onChange={(e) =>
-                        patch("diversity", { ...nb.diversity, note: e.target.value })
-                      }
-                    />
-                  </div>
-                </div>
-              );
-            case "export":
-              return <ExportView series={series} short={short} />;
           }
         })()}
       </div>
@@ -439,15 +392,207 @@ function NotebookView({
   );
 }
 
-// ===================== Export View =====================
-function ExportView({ series, short }: { series: Series; short: Short }) {
-  const { state } = useApp();
-  const lines = state.contentLines.filter((c) =>
-    series.contentLineIds.includes(c.id),
+function ExampleBox({ items }: { items: string[] }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="mb-4 rounded-lg border bg-accent/30 text-xs">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full px-3 py-2 text-left font-medium"
+      >
+        💡 예시 보기 {open ? "▲" : "▼"}
+      </button>
+      {open && (
+        <ul className="border-t px-3 py-2 space-y-1 text-muted-foreground">
+          {items.map((i, idx) => (
+            <li key={idx}>· {i}</li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
+}
+
+// ===================== Step 1: 재료 확인 =====================
+function SourceView({
+  series,
+  short,
+  onChange,
+}: {
+  series: Series;
+  short: Short;
+  onChange: (v: string) => void;
+}) {
+  const { state } = useApp();
+  const subNb = series.subNotebooks?.find((s) => s.id === short.subNotebookId);
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">
+        이 쇼츠를 만들 때 어떤 재료를 골랐는지 확인하고, 필요하면 메모를 남겨두세요.
+      </p>
+      <div className="grid gap-2 text-sm">
+        <InfoRow label="키워드 노트북" value={series.title} />
+        <InfoRow label="하위 노트북" value={subNb?.name ?? "(선택 안 함)"} />
+        <InfoRow
+          label="선택한 재료"
+          value={
+            short.materials.length === 0
+              ? "(빈 상태로 시작)"
+              : short.materials
+                  .map((m) => materialLabel(m, state))
+                  .join(" + ")
+          }
+        />
+        <InfoRow label="기본 길이/화면" value={`${series.defaultLength} · ${series.defaultScreenStyle || "-"}`} />
+      </div>
+      <div>
+        <Label className="text-sm">추가 메모</Label>
+        <Textarea
+          className="mt-1"
+          rows={3}
+          placeholder="이 재료들을 어떻게 조합할 계획인지 짧게 메모"
+          value={short.notebooks.source.note}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      </div>
+    </div>
+  );
+}
+
+function materialLabel(m: Short["materials"][number], state: ReturnType<typeof useApp>["state"]) {
+  if (m.kind === "trend") return "📥 트렌드 입력";
+  if (m.kind === "idea") {
+    const i = state.ideas.find((x) => x.id === m.ref);
+    return `💡 ${i?.title ?? "아이디어"}`;
+  }
+  if (m.kind === "format") {
+    const f = state.formats.find((x) => x.id === m.ref);
+    return `📚 ${f?.name ?? "포맷"}`;
+  }
+  return `✏️ ${m.note ?? "직접 입력"}`;
+}
+
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="grid grid-cols-3 gap-2 rounded-md border bg-card px-3 py-2">
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <div className="col-span-2 text-sm">{value}</div>
+    </div>
+  );
+}
+
+// ===================== Step 6: 제작 가이드 =====================
+function GuideEditor({
+  series,
+  data,
+  onChange,
+}: {
+  series: Series;
+  data: Short["notebooks"]["guide"];
+  onChange: (d: Short["notebooks"]["guide"]) => void;
+}) {
+  const set = <K extends keyof typeof data>(k: K, v: (typeof data)[K]) =>
+    onChange({ ...data, [k]: v });
+  return (
+    <div className="grid gap-4">
+      <p className="text-sm text-muted-foreground">
+        노트북 기본값: 톤 <b>{series.defaultTone || "-"}</b> · 화면{" "}
+        <b>{series.defaultScreenStyle || "-"}</b>
+      </p>
+      <Field label="TTS 톤" value={data.tts} onChange={(v) => set("tts", v)} placeholder="예: 차분한 남자 저음" />
+      <Field label="자막 템포" value={data.subtitleTempo} onChange={(v) => set("subtitleTempo", v)} placeholder="예: 짧은 문장 빠르게, 강조 단어에 노란색" />
+      <Field label="화면 스타일" value={data.screenStyle} onChange={(v) => set("screenStyle", v)} placeholder="예: 자막 중심 + AI 이미지 2컷" />
+      <TextArea label="장면 구성" value={data.sceneComposition} onChange={(v) => set("sceneComposition", v)} placeholder="0~2초 후킹 자막 / 2~10초 B-roll / 10초~ 인터뷰풍 자막" />
+      <TextArea label="B-roll / 이미지 아이디어" value={data.brollIdeas} onChange={(v) => set("brollIdeas", v)} placeholder="예: 새벽 도시, 지친 20대 실루엣, AI 로봇 손" />
+      <TextArea label="편집 도구에 넣을 메모" value={data.editorNote} onChange={(v) => set("editorNote", v)} placeholder="컷 전환, 효과음, 자막 스타일 등" />
+    </div>
+  );
+}
+
+function Field({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
+  return (
+    <div className="grid gap-1.5">
+      <Label className="text-sm">{label}</Label>
+      <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />
+    </div>
+  );
+}
+function TextArea({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
+  return (
+    <div className="grid gap-1.5">
+      <Label className="text-sm">{label}</Label>
+      <Textarea rows={3} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />
+    </div>
+  );
+}
+
+// ===================== Step 7: 원본성/수익화 + 최종 내보내기 =====================
+function FinalizeEditor({
+  series,
+  short,
+  onChange,
+}: {
+  series: Series;
+  short: Short;
+  onChange: (d: Short["notebooks"]["finalize"]) => void;
+}) {
+  const data = short.notebooks.finalize;
+  const set = <K extends keyof typeof data>(k: K, v: (typeof data)[K]) =>
+    onChange({ ...data, [k]: v });
+
+  return (
+    <Tabs defaultValue="check">
+      <TabsList>
+        <TabsTrigger value="check">원본성/수익화 체크</TabsTrigger>
+        <TabsTrigger value="export">최종 내보내기</TabsTrigger>
+      </TabsList>
+      <TabsContent value="check" className="mt-4 space-y-4">
+        <ul className="space-y-2">
+          {data.checks.map((c) => (
+            <li
+              key={c.id}
+              className="flex items-start gap-3 rounded-md border bg-card p-3"
+            >
+              <Checkbox
+                checked={c.checked}
+                onCheckedChange={(v) =>
+                  set(
+                    "checks",
+                    data.checks.map((x) =>
+                      x.id === c.id ? { ...x, checked: !!v } : x,
+                    ),
+                  )
+                }
+                className="mt-0.5"
+              />
+              <span className="text-sm">{c.label}</span>
+            </li>
+          ))}
+        </ul>
+        <TextArea label="저작권 위험 메모" value={data.copyrightNote} onChange={(v) => set("copyrightNote", v)} placeholder="예: 사용한 음원/이미지 출처, 위험 요소" />
+        <TextArea label="AI 사용 공개 필요 여부" value={data.aiDisclosureNote} onChange={(v) => set("aiDisclosureNote", v)} placeholder="예: AI 이미지 사용 → 자막에 'AI 이미지' 표기 예정" />
+        <TextArea label="팩트체크 필요 여부" value={data.factCheckNote} onChange={(v) => set("factCheckNote", v)} placeholder="예: 통계 인용 출처 확인 필요" />
+        <TextArea label="내 생각/해석 요약" value={data.myTakeNote} onChange={(v) => set("myTakeNote", v)} placeholder="이 쇼츠에 내 관점이 어떻게 들어갔는지" />
+      </TabsContent>
+      <TabsContent value="export" className="mt-4 space-y-4">
+        <div className="grid gap-3">
+          <Field label="업로드용 제목" value={data.uploadTitle} onChange={(v) => set("uploadTitle", v)} />
+          <TextArea label="업로드용 설명" value={data.uploadDescription} onChange={(v) => set("uploadDescription", v)} />
+          <Field label="해시태그 (콤마 구분)" value={data.uploadHashtags} onChange={(v) => set("uploadHashtags", v)} placeholder="예: #20대, #AI, #쇼츠" />
+        </div>
+        <ExportPackage series={series} short={short} />
+      </TabsContent>
+    </Tabs>
+  );
+}
+
+function ExportPackage({ series, short }: { series: Series; short: Short }) {
   const nb = short.notebooks;
-  const sel = (n: { candidates: { id: string; text: string }[]; selectedId: string | null }) =>
-    n.candidates.find((c) => c.id === n.selectedId)?.text ?? "";
+  const sel = (n: {
+    candidates: { id: string; text: string }[];
+    selectedId: string | null;
+  }) => n.candidates.find((c) => c.id === n.selectedId)?.text ?? "";
 
   const sections = useMemo(() => {
     const title = nb.title.titles.find((t) => t.id === nb.title.selectedTitleId)?.text ?? "";
@@ -458,54 +603,43 @@ function ExportView({ series, short }: { series: Series; short: Short }) {
       .map((s) => s.trim())
       .filter(Boolean)
       .join("\n");
-    const tts = script
-      .replace(/([.!?])\s+/g, "$1\n")
-      .replace(/\n{2,}/g, "\n\n");
-    const checked = nb.diversity.checks.filter((c) => c.checked).length;
+    const tts = script.replace(/([.!?])\s+/g, "$1\n").replace(/\n{2,}/g, "\n\n");
+    const checkedCount = nb.finalize.checks.filter((c) => c.checked).length;
     return [
-      { label: "쇼츠 제목", value: title },
-      { label: "시리즈", value: `${series.title} (${lines.map((l) => l.name).join(", ")})` },
+      { label: "쇼츠 제목", value: title || short.title },
+      { label: "노트북 / 태그", value: `${series.title}${series.tags?.length ? ` (${series.tags.join(", ")})` : ""}` },
       { label: "주제", value: sel(nb.topic) },
       { label: "후킹", value: sel(nb.hook) },
-      { label: "대본 (편집용)", value: script },
-      { label: "TTS용 줄바꿈 대본", value: tts },
+      { label: "최종 대본", value: script },
+      { label: "TTS용 대본", value: tts },
       { label: "자막용 문장", value: subtitle },
-      { label: "장면 구성", value: sel(nb.scene) },
-      { label: "목소리 톤", value: sel(nb.voice) },
-      { label: "제목 후보 (선택)", value: title },
+      { label: "편집용 장면 구성", value: nb.guide.sceneComposition },
+      { label: "B-roll/이미지 아이디어", value: nb.guide.brollIdeas },
+      { label: "TTS 톤", value: nb.guide.tts },
+      { label: "자막 템포", value: nb.guide.subtitleTempo },
+      { label: "화면 스타일", value: nb.guide.screenStyle },
+      { label: "편집 도구 메모", value: nb.guide.editorNote },
       { label: "썸네일 문구", value: thumb },
+      { label: "업로드용 제목", value: nb.finalize.uploadTitle },
+      { label: "업로드용 설명", value: nb.finalize.uploadDescription },
+      { label: "해시태그", value: nb.finalize.uploadHashtags },
+      { label: "저작권 주의점", value: nb.finalize.copyrightNote },
+      { label: "AI 사용 공개 여부", value: nb.finalize.aiDisclosureNote },
+      { label: "팩트체크 메모", value: nb.finalize.factCheckNote },
+      { label: "내 생각/해석", value: nb.finalize.myTakeNote },
       {
-        label: "저작권 주의점",
-        value: [
-          ...lines.map((l) => `[${l.name}] ${l.copyrightCaution}`),
-          nb.export.copyrightNote,
-        ]
-          .filter(Boolean)
-          .join("\n"),
-      },
-      {
-        label: "AI 사용 공개 필요 여부 메모",
-        value: nb.export.aiDisclosureNote,
-      },
-      {
-        label: "다양성/원본성 체크 결과",
-        value: `${checked}/${nb.diversity.checks.length} 항목 체크\n메모: ${nb.diversity.note || "(없음)"}\n수익화: ${nb.diversity.monetizationNote || "(없음)"}`,
-      },
-      {
-        label: "업로드 전 최종 점검",
-        value: nb.export.uploadChecklist.length
-          ? nb.export.uploadChecklist.map((x) => `- ${x}`).join("\n")
-          : "(없음)",
+        label: "원본성/수익화 체크 결과",
+        value: `${checkedCount}/${nb.finalize.checks.length} 항목 체크됨`,
       },
     ];
-  }, [nb, series, lines]);
+  }, [nb, series, short.title]);
 
   const all = sections
     .map((s) => `# ${s.label}\n${s.value || "(비어 있음)"}`)
     .join("\n\n---\n\n");
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 mt-4">
       <div className="flex justify-end">
         <Button
           size="sm"

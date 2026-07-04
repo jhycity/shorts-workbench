@@ -2,10 +2,17 @@ import { useApp, type SaveStatus } from "@/lib/app-context";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Save, Download, Upload, Check, Loader2 } from "lucide-react";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
+import { BackupDialog } from "./BackupDialog";
 
-export function SaveStatusBadge({ status, lastSavedAt }: { status: SaveStatus; lastSavedAt: number }) {
+export function SaveStatusBadge({
+  status,
+  lastSavedAt,
+}: {
+  status: SaveStatus;
+  lastSavedAt: number;
+}) {
   const ago = lastSavedAt ? timeAgo(lastSavedAt) : "아직 저장 안 됨";
   if (status === "saving")
     return (
@@ -32,19 +39,9 @@ function timeAgo(ts: number) {
 }
 
 export function BackupButtons() {
-  const { exportJson, importJson, saveNow } = useApp();
+  const { importJson, saveNow } = useApp();
   const fileRef = useRef<HTMLInputElement>(null);
-
-  const onExport = () => {
-    const blob = new Blob([exportJson()], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `shorts-os-backup-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success("백업 파일을 내보냈어요");
-  };
+  const [openBackup, setOpenBackup] = useState(false);
 
   const onImport = (file: File) => {
     const reader = new FileReader();
@@ -64,10 +61,14 @@ export function BackupButtons() {
       <Button variant="ghost" size="sm" onClick={saveNow}>
         <Save className="size-4 mr-1" /> 지금 저장
       </Button>
-      <Button variant="ghost" size="sm" onClick={onExport}>
+      <Button variant="ghost" size="sm" onClick={() => setOpenBackup(true)}>
         <Download className="size-4 mr-1" /> 백업 내보내기
       </Button>
-      <Button variant="ghost" size="sm" onClick={() => fileRef.current?.click()}>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => fileRef.current?.click()}
+      >
         <Upload className="size-4 mr-1" /> 백업 불러오기
       </Button>
       <input
@@ -81,6 +82,7 @@ export function BackupButtons() {
           e.target.value = "";
         }}
       />
+      <BackupDialog open={openBackup} onOpenChange={setOpenBackup} />
     </>
   );
 }

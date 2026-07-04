@@ -3,6 +3,7 @@ import { useState } from "react";
 import { AppProvider, useApp } from "@/lib/app-context";
 import { SeriesDashboard } from "@/components/SeriesDashboard";
 import { SeriesView } from "@/components/SeriesView";
+import { SubNotebookView } from "@/components/SubNotebookView";
 import { ShortView } from "@/components/ShortView";
 import { Toaster } from "@/components/ui/sonner";
 
@@ -13,13 +14,12 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "제작 노트북(시리즈) 안에서 여러 쇼츠를 계속 만들어 나가는 노트북형 제작 OS.",
+          "키워드 노트북 → 하위 노트북 → 쇼츠 프로젝트로 쇼츠를 계속 파생시키는 제작 OS.",
       },
       { property: "og:title", content: "쇼츠 자동 제작 OS" },
       {
         property: "og:description",
-        content:
-          "큰 주제 안에서 쇼츠 여러 편을 관리하고, 8단계로 한 편씩 완성하세요.",
+        content: "키워드 노트북 안에서 쇼츠 여러 편을 7단계로 완성하세요.",
       },
     ],
   }),
@@ -29,6 +29,7 @@ export const Route = createFileRoute("/")({
 type View =
   | { type: "dashboard" }
   | { type: "series"; seriesId: string }
+  | { type: "sub"; seriesId: string; subId: string }
   | { type: "short"; seriesId: string; shortId: string };
 
 function Index() {
@@ -67,15 +68,12 @@ function Shell() {
         if (view.type === "dashboard") {
           return (
             <SeriesDashboard
-              onOpenSeries={(id) =>
-                setView({ type: "series", seriesId: id })
-              }
+              onOpenSeries={(id) => setView({ type: "series", seriesId: id })}
             />
           );
         }
         const series = state.series.find((s) => s.id === view.seriesId);
         if (!series) {
-          // 삭제된 시리즈
           setView({ type: "dashboard" });
           return null;
         }
@@ -84,6 +82,21 @@ function Shell() {
             <SeriesView
               series={series}
               onBack={() => setView({ type: "dashboard" })}
+              onOpenShort={(shortId) =>
+                setView({ type: "short", seriesId: series.id, shortId })
+              }
+              onOpenSub={(subId) =>
+                setView({ type: "sub", seriesId: series.id, subId })
+              }
+            />
+          );
+        }
+        if (view.type === "sub") {
+          return (
+            <SubNotebookView
+              series={series}
+              subId={view.subId}
+              onBack={() => setView({ type: "series", seriesId: series.id })}
               onOpenShort={(shortId) =>
                 setView({ type: "short", seriesId: series.id, shortId })
               }
@@ -99,9 +112,17 @@ function Shell() {
           <ShortView
             series={series}
             short={short}
-            onBack={() =>
-              setView({ type: "series", seriesId: series.id })
-            }
+            onBack={() => {
+              if (short.subNotebookId) {
+                setView({
+                  type: "sub",
+                  seriesId: series.id,
+                  subId: short.subNotebookId,
+                });
+              } else {
+                setView({ type: "series", seriesId: series.id });
+              }
+            }}
           />
         );
       })()}
