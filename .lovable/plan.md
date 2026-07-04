@@ -1,100 +1,56 @@
-# 쇼츠 자동 제작 OS — 구조 재설계 계획
+## 목표
+앱을 "키워드 노트북 → 하위 노트북 → 쇼츠 프로젝트" 3단 구조로 정리하고, 예시 데이터 제거·백업 UX 개선·쇼츠 제작 7단계 단순화까지 한 번에 반영.
 
-## 핵심 변화
-- **1단계(시리즈) / 2단계(개별 쇼츠)** 두 계층으로 분리
-- 트렌드 입력함은 **시리즈 안**으로, 아이디어 보관함·포맷 라이브러리는 **앱 전역**으로 이동
-- 카테고리 제거 → **콘텐츠라인이 유일한 분류 기준**, 사용자가 직접 추가/수정/삭제
-- 시리즈당 콘텐츠라인 최대 3개 선택 가능
-- 자동 저장 상태 표시 + 수동 저장/백업 내보내기·불러오기
+## 1. 데이터 구조 개편 (`src/lib/types.ts`, `src/lib/store.ts`)
+- `Series` → `KeywordNotebook` 개념으로 정리 (기존 타입명은 유지해 마이그레이션 부담↓, 필드만 확장):
+  - 제거: `contentLineIds`, `avoidStyles`
+  - 추가: `tags: string[]` (최대 3), `defaultScreenStyle`, `defaultFormatId?`, `defaultVoice?`, `defaultSubtitleStyle?`, `subNotebooks: SubNotebook[]`
+- 새 타입 `SubNotebook { id, name, description, ideaIds[], formatIds[], shortIds[] }`
+- `Short`에 `subNotebookId?: string`, `sourceMix: { trend?: boolean; ideaId?; formatId?; custom?: string }[]` (최대 3), `guide: { tts, subtitleTempo, screenStyle, sceneComposition, brollIdeas, editorNote }` 필드 추가
+- `Idea`에 `subNotebookId?` 추가
+- `NOTEBOOK_ORDER` 8단계 → 7단계로 축소: `source, topic, hook, script, title, guide, finalize`
+- `seedAppState`: `series: []`, 예시 노트북 자동 생성 완전 제거 (이미 되어있으면 유지 확인)
+- `schemaVersion: 3`으로 올리고 v2→v3 마이그레이션(빈 tags/subNotebooks 채움)
 
-## 새로운 데이터 구조
+## 2. 노트북 생성 다이얼로그 (`src/components/NewSeriesDialog.tsx`)
+필수: 이름, 설명, 기본 길이, 기본 제작 스타일(=톤), 기본 화면 스타일  
+선택: 태그 최대 3개(+안내문구), 주로 쓸 포맷, 주로 쓸 TTS 톤, 자막 스타일  
+- 콘텐츠라인 셀렉트 완전 제거
 
-```text
-AppState
-├─ series[]                    # 제작 노트북/시리즈
-│   ├─ id, title, description
-│   ├─ contentLineIds[] (max 3)
-│   ├─ defaultLength, defaultTone, defaultScreenStyle
-│   ├─ avoidStyles[]
-│   ├─ trendInbox { keywords, emotions, refStructure, myAngle, avoid }
-│   └─ shorts[]                # 쇼츠 프로젝트
-│       ├─ id, title, status, createdAt, updatedAt
-│       ├─ sourceType: 'trend' | 'idea' | 'format' | 'blank'
-│       ├─ sourceRef           # 원본 아이디어/포맷 id
-│       └─ notebooks { topic, hook, script, title, voice, scene, diversity, export }
-├─ contentLines[]              # 사용자 편집 가능 (기본 9개 시드)
-├─ ideas[]                     # 전역 아이디어 보관함
-├─ formats[]                   # 전역 포맷 라이브러리
-└─ meta { lastSavedAt, schemaVersion }
-```
+## 3. 대시보드 (`src/components/SeriesDashboard.tsx`)
+- 예시 노트북은 카드가 아니라 "새 노트북" 버튼 위 작은 추천 칩만 (이미 부분 반영됨)
+- 각 노트북 카드에 삭제 버튼 + 확인창 → localStorage 반영
+- 백업 버튼은 새 백업 다이얼로그 열기
 
-## 화면 구조
+## 4. 노트북 뷰 (`src/components/SeriesView.tsx`)
+- 하위 노트북 섹션 추가 (생성/삭제/열기)
+- 노트북 안에서 아이디어 바로 추가 버튼
+- 쇼츠 목록은 하위 노트북 필터 지원
 
-```text
-/ (메인 = 시리즈 목록)
-  ├─ 헤더: 저장상태 · 수동저장 · 백업 내보내기/불러오기 · 콘텐츠라인 관리 · 아이디어 보관함 · 포맷 라이브러리
-  └─ 시리즈 카드 그리드 (제목, 콘텐츠라인 칩, 쇼츠 수, 진행/완료, 최근 업데이트, "새 쇼츠 만들기")
+## 5. 하위 노트북 뷰 (신규 `src/components/SubNotebookView.tsx`)
+- 이름/설명, 연결 아이디어·포맷·쇼츠, 새 쇼츠 만들기
 
-/series/:id (시리즈 내부)
-  ├─ 좌: 트렌드 입력함 (예시 placeholder 포함)
-  ├─ 우 상: 관련 아이디어 (이 시리즈의 콘텐츠라인과 매칭)
-  ├─ 우 중: 관련 포맷
-  └─ 하: 쇼츠 프로젝트 목록 + "새 쇼츠 만들기"(4가지 방식 선택)
+## 6. 쇼츠 생성 (`src/components/NewShortDialog.tsx`)
+- 재료 다중 선택 (트렌드/아이디어/포맷/직접입력) 최대 3, 초과 시 안내
+- 하위 노트북 선택 옵션
 
-/series/:id/shorts/:shortId (개별 쇼츠)
-  └─ 8단계: topic → hook → script → title → voice → scene → diversity → export
-```
+## 7. 쇼츠 뷰 7단계 (`src/components/ShortView.tsx`)
+- 단계: 재료 확인 → 주제 → 후킹 → 대본 → 제목/썸네일 → 제작 가이드 → 원본성/수익화+최종 내보내기
+- 6단계는 텍스트 필드 묶음, 7단계는 체크리스트+전체 복사
 
-라우팅은 TanStack Router 파일 라우트(`series.$seriesId.tsx`, `series.$seriesId.shorts.$shortId.tsx`)로 추가.
+## 8. 백업 다이얼로그 (신규 `src/components/BackupDialog.tsx`)
+- 대상 선택 라디오(전체/노트북/하위노트북/쇼츠/아이디어/포맷)
+- 미리보기 요약 카드
+- `shorts-os-backup-YYYYMMDD.json` 다운로드 + 클립보드 복사
+- 불러오기 유지
 
-## 단계별 작업
+## 9. 각 단계 예시 힌트
+- 트렌드 입력·주제·후킹 후보에 placeholder + 접이식 예시 카드
 
-1. **타입 재정의** (`src/lib/types.ts`)
-   - `Series`, `Short`, `Idea`, `Format`, `ContentLine`(편집형), `TrendInbox` 정의
-   - 기존 `Project`는 `Short`로 흡수, `NotebookId`에서 trend/idea/format 제거 → 8단계만
+## 기술 세부
+- 라우팅 없음 (현재 상태 기반 뷰 전환 유지). `src/routes/index.tsx`에 뷰 스택 `dashboard | series | sub | short` 추가.
+- 기존 콘텐츠라인 데이터는 표시 안 하되 삭제하지 않고 v3에서 무시 (import 호환).
+- 모든 삭제는 `confirm()` + toast.
 
-2. **스토어 재작성** (`src/lib/store.ts`)
-   - 새 키 `shorts-os::state::v2` (구버전 v1 데이터는 시드 시리즈 1개로 마이그레이션 시도, 실패 시 무시)
-   - load/save + `exportBackup()`/`importBackup()` JSON
-   - `lastSavedAt` 타임스탬프
-
-3. **컨텍스트 재작성** (`src/lib/app-context.tsx` 신규, 기존 projects-context 제거)
-   - series CRUD, short CRUD, idea/format/contentLine CRUD, 트렌드 입력함 갱신
-   - 디바운스 자동 저장 + 저장 상태(`idle | saving | saved`)
-
-4. **메인 화면** (`src/components/SeriesDashboard.tsx`)
-   - 시리즈 카드 + 새 시리즈 다이얼로그(`NewSeriesDialog.tsx`)
-   - 상단 글로벌 액션바(저장상태/백업/관리 시트)
-
-5. **시리즈 뷰** (`src/components/SeriesView.tsx`)
-   - 트렌드 입력함(예시 placeholder), 관련 아이디어/포맷 패널, 쇼츠 목록
-   - 새 쇼츠 다이얼로그: 4가지 출발점(`NewShortDialog.tsx`)
-
-6. **쇼츠 뷰** (`src/components/ShortView.tsx`)
-   - 기존 `NotebookView`를 8단계 한정으로 정리해 재사용
-
-7. **전역 라이브러리 관리 UI**
-   - `IdeasManager.tsx`, `FormatsManager.tsx`, `ContentLinesManager.tsx` (Sheet 또는 Dialog)
-
-8. **백업 UX**
-   - 헤더에 저장 상태 배지, "지금 저장", "백업 .json 내보내기/불러오기"
-
-9. **시드 데이터**
-   - 첫 실행 시 콘텐츠라인 9개 + "20대 현실 조언" 시리즈 + "20대에 무조건 해야 할 것 TOP3" 쇼츠 생성
-
-10. **라우트 파일 추가 + 기존 index.tsx 정리**
-
-## 유지/이동/제거
-
-- 유지: `presets.ts`(시드 데이터로 활용), shadcn UI, 디자인 토큰
-- 이동: 트렌드→시리즈, 아이디어/포맷→전역
-- 제거: `Category` 필드, 단일-프로젝트 `Project` 타입의 trend/idea/format 노트북
-
-## 명시적 제외 (지금 하지 않음)
-- AI API, 자동 생성/업로드, 로그인, 결제, 외부 DB
-
-## 사용 흐름 (완료 후 사용자에게 안내)
-1. 메인에서 시리즈 선택 또는 새로 만들기 (콘텐츠라인 최대 3개)
-2. 시리즈 안에서 트렌드 입력함 채우기 → "새 쇼츠 만들기"(트렌드/아이디어/포맷/빈)
-3. 쇼츠 안에서 8단계 진행 → 최종 내보내기에서 패키지 복사
-4. 좋은 아이디어/포맷은 전역 보관함에 저장해 다른 시리즈에서 재사용
+## 사용 순서 (완료 후 사용자 안내)
+1) 키워드 노트북 만들기 → 2) (선택) 하위 노트북 만들기 → 3) 트렌드 입력/아이디어 저장 → 4) 새 쇼츠 만들기(재료 최대 3개) → 5) 7단계 진행 → 6) 최종 내보내기 → 7) 필요 시 백업.
