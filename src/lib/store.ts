@@ -3,12 +3,16 @@ import type {
   Candidate,
   CandidateNotebook,
   ContentLine,
+  FinalizeNotebookData,
+  GuideNotebookData,
   Length,
+  Material,
   NotebookId,
   Series,
   Short,
+  SourceNotebookData,
 } from "./types";
-import { NOTEBOOK_ORDER, DEFAULT_AVOID_STYLES } from "./types";
+import { NOTEBOOK_ORDER } from "./types";
 import {
   SEED_CONTENT_LINES,
   defaultDiversityChecks,
@@ -16,8 +20,9 @@ import {
   uid,
 } from "./presets";
 
-const KEY = "shorts-os::state::v2";
-const LEGACY_KEY_V1 = "shorts-os::projects::v1";
+const KEY = "shorts-os::state::v3";
+const LEGACY_V2 = "shorts-os::state::v2";
+const LEGACY_V1 = "shorts-os::projects::v1";
 
 const emptyCandidates = (): [Candidate, Candidate, Candidate] => [
   { id: uid(), text: "" },
@@ -31,6 +36,30 @@ const emptyCandidateNotebook = (): CandidateNotebook => ({
   selectedId: null,
 });
 
+const emptySource = (): SourceNotebookData => ({ status: "todo", note: "" });
+
+const emptyGuide = (): GuideNotebookData => ({
+  status: "todo",
+  tts: "",
+  subtitleTempo: "",
+  screenStyle: "",
+  sceneComposition: "",
+  brollIdeas: "",
+  editorNote: "",
+});
+
+const emptyFinalize = (): FinalizeNotebookData => ({
+  status: "todo",
+  checks: defaultDiversityChecks(),
+  copyrightNote: "",
+  aiDisclosureNote: "",
+  myTakeNote: "",
+  factCheckNote: "",
+  uploadTitle: "",
+  uploadDescription: "",
+  uploadHashtags: "",
+});
+
 const emptyUnlocked = (): Record<NotebookId, boolean> =>
   Object.fromEntries(NOTEBOOK_ORDER.map((k) => [k, false])) as Record<
     NotebookId,
@@ -39,22 +68,27 @@ const emptyUnlocked = (): Record<NotebookId, boolean> =>
 
 export function createShort(input: {
   seriesId: string;
+  subNotebookId?: string;
   title: string;
   sourceType: Short["sourceType"];
   sourceRef?: string;
+  materials?: Material[];
   isDraft?: boolean;
 }): Short {
   const now = Date.now();
   return {
     id: uid(),
     seriesId: input.seriesId,
+    subNotebookId: input.subNotebookId,
     title: input.title,
     sourceType: input.sourceType,
     sourceRef: input.sourceRef,
+    materials: input.materials ?? [],
     isDraft: input.isDraft,
     createdAt: now,
     updatedAt: now,
     notebooks: {
+      source: emptySource(),
       topic: emptyCandidateNotebook(),
       hook: emptyCandidateNotebook(),
       script: emptyCandidateNotebook(),
@@ -65,29 +99,8 @@ export function createShort(input: {
         selectedTitleId: null,
         selectedThumbId: null,
       },
-      voice: {
-        status: "todo",
-        candidates: [
-          { id: uid(), text: "차분한 남자 저음" },
-          { id: uid(), text: "빠른 정보 전달 톤" },
-          { id: uid(), text: "감성적 나레이션 톤" },
-        ],
-        selectedId: null,
-      },
-      scene: emptyCandidateNotebook(),
-      diversity: {
-        status: "todo",
-        checks: defaultDiversityChecks(),
-        note: "",
-        monetizationNote: "",
-      },
-      export: {
-        status: "todo",
-        editorGuide: "",
-        uploadChecklist: [],
-        aiDisclosureNote: "",
-        copyrightNote: "",
-      },
+      guide: emptyGuide(),
+      finalize: emptyFinalize(),
     },
     unlocked: emptyUnlocked(),
   };
@@ -96,22 +109,27 @@ export function createShort(input: {
 export function createSeries(input: {
   title: string;
   description: string;
-  contentLineIds: string[];
+  tags: string[];
   defaultLength: Length;
   defaultTone: string;
   defaultScreenStyle: string;
-  avoidStyles: string[];
+  defaultFormatId?: string;
+  defaultVoice?: string;
+  defaultSubtitleStyle?: string;
 }): Series {
   const now = Date.now();
   return {
     id: uid(),
     title: input.title,
     description: input.description,
-    contentLineIds: input.contentLineIds.slice(0, 3),
+    tags: input.tags.slice(0, 3),
     defaultLength: input.defaultLength,
     defaultTone: input.defaultTone,
     defaultScreenStyle: input.defaultScreenStyle,
-    avoidStyles: input.avoidStyles,
+    defaultFormatId: input.defaultFormatId,
+    defaultVoice: input.defaultVoice,
+    defaultSubtitleStyle: input.defaultSubtitleStyle,
+    subNotebooks: [],
     trendInbox: {
       keywords: "",
       emotions: "",
@@ -120,6 +138,7 @@ export function createSeries(input: {
       avoid: "",
     },
     shorts: [],
+    contentLineIds: [],
     createdAt: now,
     updatedAt: now,
   };
@@ -133,7 +152,7 @@ export function seedAppState(): AppState {
   const lines = SEED_CONTENT_LINES.slice();
   const formats = seedFormats(lineIdByName(lines));
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     series: [],
     contentLines: lines,
     ideas: [],
@@ -147,30 +166,115 @@ export function loadAppState(): AppState {
   try {
     const raw = localStorage.getItem(KEY);
     if (raw) {
-      const parsed = JSON.parse(raw) as AppState;
-      if (parsed?.schemaVersion === 2) return normalize(parsed);
+      const parsed = JSON.parse(raw);
+      if (parsed?.schemaVersion === 3) return normalize(parsed);
     }
-    // v1 → v2 폐기성 마이그레이션: 시드 + 안내
-    const legacy = localStorage.getItem(LEGACY_KEY_V1);
+    // v2 → v3 migration
+    const v2 = localStorage.getItem(LEGACY_V2);
+    if (v2) {
+      const parsed = JSON.parse(v2);
+      const migrated = migrateFromV2(parsed);
+      localStorage.setItem(
+        "shorts-os::state::v2.backup",
+        v2,
+      );
+      return migrated;
+    }
+    const legacy = localStorage.getItem(LEGACY_V1);
     if (legacy) {
-      // 구조가 너무 달라 자동 변환 대신 백업 키로 보존
       localStorage.setItem("shorts-os::projects::v1.backup", legacy);
     }
   } catch {}
   return seedAppState();
 }
 
+// v2 → v3
+function migrateFromV2(v2: any): AppState {
+  const base = seedAppState();
+  const series: Series[] = (v2.series ?? []).map((se: any) => ({
+    id: se.id ?? uid(),
+    title: se.title ?? "제작 노트북",
+    description: se.description ?? "",
+    tags: [],
+    defaultLength: se.defaultLength ?? "30초",
+    defaultTone: se.defaultTone ?? "",
+    defaultScreenStyle: se.defaultScreenStyle ?? "",
+    subNotebooks: [],
+    trendInbox: se.trendInbox ?? {
+      keywords: "",
+      emotions: "",
+      refStructure: "",
+      myAngle: "",
+      avoid: "",
+    },
+    shorts: (se.shorts ?? []).map((sh: any) => migrateShort(sh, se.id)),
+    contentLineIds: se.contentLineIds ?? [],
+    createdAt: se.createdAt ?? Date.now(),
+    updatedAt: se.updatedAt ?? Date.now(),
+  }));
+  return {
+    ...base,
+    series,
+    ideas: v2.ideas ?? [],
+    formats: v2.formats ?? base.formats,
+  };
+}
+
+function migrateShort(sh: any, seriesId: string): Short {
+  const oldNb = sh.notebooks ?? {};
+  const newShort = createShort({
+    seriesId: sh.seriesId ?? seriesId,
+    title: sh.title ?? "쇼츠",
+    sourceType: sh.sourceType ?? "blank",
+    sourceRef: sh.sourceRef,
+    isDraft: sh.isDraft,
+  });
+  newShort.id = sh.id ?? newShort.id;
+  newShort.createdAt = sh.createdAt ?? newShort.createdAt;
+  newShort.updatedAt = sh.updatedAt ?? newShort.updatedAt;
+  // 후보 데이터 이전
+  if (oldNb.topic) newShort.notebooks.topic = oldNb.topic;
+  if (oldNb.hook) newShort.notebooks.hook = oldNb.hook;
+  if (oldNb.script) newShort.notebooks.script = oldNb.script;
+  if (oldNb.title) newShort.notebooks.title = oldNb.title;
+  // voice+scene → guide
+  if (oldNb.voice || oldNb.scene) {
+    const voiceSel =
+      oldNb.voice?.candidates?.find((c: any) => c.id === oldNb.voice?.selectedId)
+        ?.text ?? "";
+    const sceneSel =
+      oldNb.scene?.candidates?.find((c: any) => c.id === oldNb.scene?.selectedId)
+        ?.text ?? "";
+    newShort.notebooks.guide = {
+      ...newShort.notebooks.guide,
+      tts: voiceSel,
+      sceneComposition: sceneSel,
+    };
+  }
+  // diversity+export → finalize
+  if (oldNb.diversity || oldNb.export) {
+    newShort.notebooks.finalize = {
+      ...newShort.notebooks.finalize,
+      checks: oldNb.diversity?.checks ?? newShort.notebooks.finalize.checks,
+      copyrightNote: oldNb.export?.copyrightNote ?? "",
+      aiDisclosureNote: oldNb.export?.aiDisclosureNote ?? "",
+      myTakeNote: oldNb.diversity?.note ?? "",
+    };
+  }
+  return newShort;
+}
+
 function normalize(s: AppState): AppState {
-  // 보강: 없는 필드 채우기
   return {
     ...s,
-    contentLines: s.contentLines?.length ? s.contentLines : SEED_CONTENT_LINES.slice(),
+    contentLines: s.contentLines ?? [],
     ideas: s.ideas ?? [],
     formats: s.formats ?? [],
     series: (s.series ?? []).map((se) => ({
       ...se,
+      tags: se.tags ?? [],
+      subNotebooks: se.subNotebooks ?? [],
       contentLineIds: se.contentLineIds ?? [],
-      avoidStyles: se.avoidStyles ?? DEFAULT_AVOID_STYLES,
       trendInbox: se.trendInbox ?? {
         keywords: "",
         emotions: "",
@@ -180,6 +284,7 @@ function normalize(s: AppState): AppState {
       },
       shorts: (se.shorts ?? []).map((sh) => ({
         ...sh,
+        materials: sh.materials ?? [],
         unlocked: sh.unlocked ?? emptyUnlocked(),
       })),
     })),
@@ -200,9 +305,10 @@ export function exportBackup(state: AppState): string {
 }
 
 export function importBackup(json: string): AppState {
-  const parsed = JSON.parse(json) as AppState;
-  if (parsed?.schemaVersion !== 2) throw new Error("스키마 버전이 다릅니다");
-  return normalize(parsed);
+  const parsed = JSON.parse(json);
+  if (parsed?.schemaVersion === 3) return normalize(parsed);
+  if (parsed?.schemaVersion === 2) return migrateFromV2(parsed);
+  throw new Error("스키마 버전을 알 수 없어요");
 }
 
 // ----- 진행률/잠금 -----
@@ -226,19 +332,17 @@ export function isLocked(s: Short, id: NotebookId): boolean {
 }
 
 export function nextStep(s: Short): NotebookId | null {
-  return (
-    NOTEBOOK_ORDER.find((id) => s.notebooks[id].status !== "done") ?? null
-  );
+  return NOTEBOOK_ORDER.find((id) => s.notebooks[id].status !== "done") ?? null;
 }
 
 export function seriesStats(s: Series) {
   const total = s.shorts.length;
   const done = s.shorts.filter(
-    (sh) => sh.notebooks.export.status === "done",
+    (sh) => sh.notebooks.finalize.status === "done",
   ).length;
   const inProgress = s.shorts.filter(
     (sh) =>
-      sh.notebooks.export.status !== "done" &&
+      sh.notebooks.finalize.status !== "done" &&
       NOTEBOOK_ORDER.some((id) => sh.notebooks[id].status !== "todo"),
   ).length;
   return { total, done, inProgress };

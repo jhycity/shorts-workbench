@@ -15,6 +15,7 @@ import type {
   Idea,
   Series,
   Short,
+  SubNotebook,
 } from "./types";
 import {
   exportBackup,
@@ -30,16 +31,24 @@ interface Ctx {
   state: AppState;
   saveStatus: SaveStatus;
   lastSavedAt: number;
-  // mutate helper
   setState: (updater: (s: AppState) => AppState) => void;
   saveNow: () => void;
   exportJson: () => string;
+  exportPartial: (data: unknown) => string;
   importJson: (json: string) => void;
-  // series
+
   addSeries: (s: Series) => void;
   updateSeries: (id: string, updater: (s: Series) => Series) => void;
   deleteSeries: (id: string) => void;
-  // shorts
+
+  addSubNotebook: (seriesId: string, sub: SubNotebook) => void;
+  updateSubNotebook: (
+    seriesId: string,
+    subId: string,
+    patch: Partial<SubNotebook>,
+  ) => void;
+  deleteSubNotebook: (seriesId: string, subId: string) => void;
+
   addShort: (s: Short) => void;
   updateShort: (
     seriesId: string,
@@ -47,15 +56,15 @@ interface Ctx {
     updater: (s: Short) => Short,
   ) => void;
   deleteShort: (seriesId: string, shortId: string) => void;
-  // content lines
+
   addContentLine: (c: Omit<ContentLine, "id">) => void;
   updateContentLine: (id: string, patch: Partial<ContentLine>) => void;
   deleteContentLine: (id: string) => void;
-  // ideas
+
   addIdea: (i: Omit<Idea, "id" | "createdAt">) => void;
   updateIdea: (id: string, patch: Partial<Idea>) => void;
   deleteIdea: (id: string) => void;
-  // formats
+
   addFormat: (f: Omit<Format, "id">) => void;
   updateFormat: (id: string, patch: Partial<Format>) => void;
   deleteFormat: (id: string) => void;
@@ -70,7 +79,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const debounceRef = useRef<number | null>(null);
 
   useEffect(() => {
-    // 클라이언트에서 한 번 더 로드 (SSR 안전)
     setStateInternal(loadAppState());
     setHydrated(true);
   }, []);
@@ -83,7 +91,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setSaveStatus("saved");
   }, []);
 
-  // 디바운스 자동 저장
   useEffect(() => {
     if (!hydrated) return;
     setSaveStatus("saving");
@@ -116,7 +123,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setState,
       saveNow: () => persist(state),
       exportJson: () => exportBackup(state),
-      importJson: (json: string) => persist(importBackup(json)),
+      exportPartial: (data) => JSON.stringify(data, null, 2),
+      importJson: (json) => persist(importBackup(json)),
 
       addSeries: (s) =>
         setState((st) => ({ ...st, series: [s, ...st.series] })),
@@ -131,6 +139,53 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setState((st) => ({
           ...st,
           series: st.series.filter((se) => se.id !== id),
+        })),
+
+      addSubNotebook: (seriesId, sub) =>
+        setState((st) => ({
+          ...st,
+          series: st.series.map((se) =>
+            se.id === seriesId
+              ? {
+                  ...se,
+                  subNotebooks: [...(se.subNotebooks ?? []), sub],
+                  updatedAt: Date.now(),
+                }
+              : se,
+          ),
+        })),
+      updateSubNotebook: (seriesId, subId, patch) =>
+        setState((st) => ({
+          ...st,
+          series: st.series.map((se) =>
+            se.id === seriesId
+              ? {
+                  ...se,
+                  subNotebooks: (se.subNotebooks ?? []).map((sb) =>
+                    sb.id === subId ? { ...sb, ...patch } : sb,
+                  ),
+                }
+              : se,
+          ),
+        })),
+      deleteSubNotebook: (seriesId, subId) =>
+        setState((st) => ({
+          ...st,
+          series: st.series.map((se) =>
+            se.id === seriesId
+              ? {
+                  ...se,
+                  subNotebooks: (se.subNotebooks ?? []).filter(
+                    (sb) => sb.id !== subId,
+                  ),
+                  shorts: se.shorts.map((sh) =>
+                    sh.subNotebookId === subId
+                      ? { ...sh, subNotebookId: undefined }
+                      : sh,
+                  ),
+                }
+              : se,
+          ),
         })),
 
       addShort: (sh) =>
@@ -176,7 +231,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       addContentLine: (c) =>
         setState((st) => ({
           ...st,
-          contentLines: [...st.contentLines, { id: uid(), isCustom: true, ...c }],
+          contentLines: [
+            ...st.contentLines,
+            { id: uid(), isCustom: true, ...c },
+          ],
         })),
       updateContentLine: (id, patch) =>
         setState((st) => ({
@@ -191,7 +249,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           contentLines: st.contentLines.filter((c) => c.id !== id),
           series: st.series.map((se) => ({
             ...se,
-            contentLineIds: se.contentLineIds.filter((x) => x !== id),
+            contentLineIds: (se.contentLineIds ?? []).filter((x) => x !== id),
           })),
           formats: st.formats.map((f) => ({
             ...f,
@@ -227,7 +285,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       updateFormat: (id, patch) =>
         setState((st) => ({
           ...st,
-          formats: st.formats.map((f) => (f.id === id ? { ...f, ...patch } : f)),
+          formats: st.formats.map((f) =>
+            f.id === id ? { ...f, ...patch } : f,
+          ),
         })),
       deleteFormat: (id) =>
         setState((st) => ({
