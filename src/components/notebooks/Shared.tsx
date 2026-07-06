@@ -18,9 +18,10 @@ export function CandidatePicker({ data, onChange, placeholder, description }: Pr
     onChange({ ...data, candidates });
   };
 
-  const select = (id: string) => {
+  const select = (id: string | null) => {
     onChange({ ...data, selectedId: id });
   };
+
 
   return (
     <div className="space-y-4">
