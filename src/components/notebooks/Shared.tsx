@@ -66,7 +66,7 @@ export function CandidatePicker({ data, onChange, placeholder, description }: Pr
                 variant={selected ? "default" : "outline"}
                 className="mt-2 w-full"
                 disabled={!c.text.trim()}
-                onClick={() => select(selected ? "" : c.id)}
+                onClick={() => select(selected ? null : c.id)}
               >
                 {selected ? (
                   <><Check className="size-3.5 mr-1" /> 선택 해제</>
