@@ -18,9 +18,10 @@ export function CandidatePicker({ data, onChange, placeholder, description }: Pr
     onChange({ ...data, candidates });
   };
 
-  const select = (id: string) => {
+  const select = (id: string | null) => {
     onChange({ ...data, selectedId: id });
   };
+
 
   return (
     <div className="space-y-4">
@@ -34,10 +35,17 @@ export function CandidatePicker({ data, onChange, placeholder, description }: Pr
           return (
             <div
               key={c.id}
-              className={`rounded-xl border p-3 transition ${
-                selected ? "border-primary bg-accent/50 ring-2 ring-primary/30" : "border-border bg-card"
+              className={`relative rounded-xl border p-3 transition ${
+                selected
+                  ? "border-primary bg-accent ring-2 ring-primary/40"
+                  : "border-border bg-card"
               }`}
             >
+              {selected && (
+                <span className="absolute -top-2 -right-2 rounded-full bg-primary text-primary-foreground text-[10px] font-semibold px-2 py-0.5 shadow">
+                  선택됨
+                </span>
+              )}
               <div className="flex items-center justify-between mb-2">
                 <Badge variant={selected ? "default" : "secondary"}>후보 {label}</Badge>
                 {selected && (
@@ -55,14 +63,19 @@ export function CandidatePicker({ data, onChange, placeholder, description }: Pr
               />
               <Button
                 size="sm"
-                variant={selected ? "secondary" : "outline"}
+                variant={selected ? "default" : "outline"}
                 className="mt-2 w-full"
                 disabled={!c.text.trim()}
-                onClick={() => select(c.id)}
+                onClick={() => select(selected ? null : c.id)}
               >
-                {selected ? "선택됨" : "이 후보 선택"}
+                {selected ? (
+                  <><Check className="size-3.5 mr-1" /> 선택 해제</>
+                ) : (
+                  "이 후보 선택"
+                )}
               </Button>
             </div>
+
           );
         })}
       </div>
