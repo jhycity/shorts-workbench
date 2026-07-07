@@ -202,6 +202,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
               : se,
           ),
         })),
+      duplicateShort: (seriesId, shortId) => {
+        const se = state.series.find((x) => x.id === seriesId);
+        const src = se?.shorts.find((x) => x.id === shortId);
+        if (!src) return null;
+        const now = Date.now();
+        const copy: Short = {
+          ...JSON.parse(JSON.stringify(src)),
+          id: uid(),
+          title: `${src.title} (사본)`,
+          isDraft: true,
+          createdAt: now,
+          updatedAt: now,
+        };
+        setState((st) => ({
+          ...st,
+          series: st.series.map((s) =>
+            s.id === seriesId
+              ? { ...s, shorts: [copy, ...s.shorts], updatedAt: now }
+              : s,
+          ),
+        }));
+        return copy.id;
+      },
       updateShort: (seriesId, shortId, updater) =>
         setState((st) => ({
           ...st,
