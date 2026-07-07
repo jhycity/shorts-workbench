@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useApp } from "@/lib/app-context";
 import type { Series } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,16 @@ import { Label } from "@/components/ui/label";
 import { Plus, Trash2 } from "lucide-react";
 import { NewShortDialog } from "./NewShortDialog";
 import { ShortCard } from "./SeriesView";
+import { shortStatus, type ShortStatus } from "@/lib/store";
 import { toast } from "sonner";
+
+type StatusFilter = "all" | ShortStatus;
+const FILTERS: { id: StatusFilter; label: string }[] = [
+  { id: "all", label: "전체" },
+  { id: "draft", label: "초안" },
+  { id: "in_progress", label: "진행 중" },
+  { id: "completed", label: "완료" },
+];
 
 export function SubNotebookView({
   series,
