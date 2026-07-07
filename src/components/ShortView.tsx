@@ -41,7 +41,7 @@ export function ShortView({
   short: Short;
   onBack: () => void;
 }) {
-  const { updateShort, deleteShort } = useApp();
+  const { updateShort, deleteShort, duplicateShort } = useApp();
   const [openId, setOpenId] = useState<NotebookId | null>(null);
 
   const progress = notebookProgress(short);
@@ -69,11 +69,37 @@ export function ShortView({
         ← 노트북으로 돌아가기
       </button>
       <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">{short.title}</h1>
-          <div className="mt-2 flex flex-wrap gap-1">
+        <div className="flex-1 min-w-0">
+          <Input
+            className="text-3xl font-bold border-0 shadow-none px-0 h-auto focus-visible:ring-0 tracking-tight"
+            value={short.title}
+            onChange={(e) =>
+              updateShort(series.id, short.id, (s) => ({ ...s, title: e.target.value }))
+            }
+            placeholder="쇼츠 제목"
+          />
+          <div className="mt-2 flex flex-wrap items-center gap-2">
             <Badge variant="outline">노트북: {series.title}</Badge>
-            {subNb && <Badge variant="outline">하위: {subNb.name}</Badge>}
+            <div className="flex items-center gap-1">
+              <Label className="text-[11px] text-muted-foreground">하위 노트북:</Label>
+              <select
+                className="rounded-md border bg-background px-2 py-1 text-xs"
+                value={short.subNotebookId ?? ""}
+                onChange={(e) =>
+                  updateShort(series.id, short.id, (s) => ({
+                    ...s,
+                    subNotebookId: e.target.value || undefined,
+                  }))
+                }
+              >
+                <option value="">(없음)</option>
+                {(series.subNotebooks ?? []).map((sb) => (
+                  <option key={sb.id} value={sb.id}>
+                    {sb.name}
+                  </option>
+                ))}
+              </select>
+            </div>
             <Badge variant="secondary">{series.defaultLength}</Badge>
             {short.isDraft && <Badge variant="secondary">임시 저장</Badge>}
           </div>
@@ -90,6 +116,16 @@ export function ShortView({
             }
           >
             {short.isDraft ? "임시 저장 해제" : "임시 저장으로"}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              const id = duplicateShort(series.id, short.id);
+              if (id) toast.success("쇼츠를 복제했어요");
+            }}
+          >
+            <Copy className="size-4 mr-1" /> 복제
           </Button>
           <Button
             variant="ghost"
