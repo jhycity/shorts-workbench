@@ -335,15 +335,27 @@ export function nextStep(s: Short): NotebookId | null {
   return NOTEBOOK_ORDER.find((id) => s.notebooks[id].status !== "done") ?? null;
 }
 
+export type ShortStatus = "draft" | "in_progress" | "completed";
+
+export function shortStatus(sh: Short): ShortStatus {
+  if (sh.notebooks.finalize.status === "done") return "completed";
+  if (sh.isDraft) return "draft";
+  return "in_progress";
+}
+
 export function seriesStats(s: Series) {
   const total = s.shorts.length;
-  const done = s.shorts.filter(
-    (sh) => sh.notebooks.finalize.status === "done",
-  ).length;
+  const done = s.shorts.filter((sh) => shortStatus(sh) === "completed").length;
+  const draft = s.shorts.filter((sh) => shortStatus(sh) === "draft").length;
   const inProgress = s.shorts.filter(
-    (sh) =>
-      sh.notebooks.finalize.status !== "done" &&
-      NOTEBOOK_ORDER.some((id) => sh.notebooks[id].status !== "todo"),
+    (sh) => shortStatus(sh) === "in_progress",
   ).length;
-  return { total, done, inProgress };
+  return { total, done, inProgress, draft };
+}
+
+export function currentStepIndex(sh: Short): number {
+  const idx = NOTEBOOK_ORDER.findIndex(
+    (id) => sh.notebooks[id].status !== "done",
+  );
+  return idx === -1 ? NOTEBOOK_ORDER.length : idx + 1;
 }
