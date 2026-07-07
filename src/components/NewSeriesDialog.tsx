@@ -131,9 +131,11 @@ export function NewSeriesDialog({ open, onOpenChange, onCreated, editSeries }: P
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>새 키워드 노트북</DialogTitle>
+          <DialogTitle>{isEdit ? "키워드 노트북 수정" : "새 키워드 노트북"}</DialogTitle>
           <DialogDescription>
-            큰 키워드 하나 안에서 하위 노트북과 쇼츠가 계속 파생돼요.
+            {isEdit
+              ? "제목, 설명, 기본 설정을 언제든지 바꿀 수 있어요."
+              : "큰 키워드 하나 안에서 하위 노트북과 쇼츠가 계속 파생돼요."}
           </DialogDescription>
         </DialogHeader>
 
