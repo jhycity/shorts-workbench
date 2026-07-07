@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useApp } from "@/lib/app-context";
 import type { Series } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,16 @@ import { Label } from "@/components/ui/label";
 import { Plus, Trash2 } from "lucide-react";
 import { NewShortDialog } from "./NewShortDialog";
 import { ShortCard } from "./SeriesView";
+import { shortStatus, type ShortStatus } from "@/lib/store";
 import { toast } from "sonner";
+
+type StatusFilter = "all" | ShortStatus;
+const FILTERS: { id: StatusFilter; label: string }[] = [
+  { id: "all", label: "전체" },
+  { id: "draft", label: "초안" },
+  { id: "in_progress", label: "진행 중" },
+  { id: "completed", label: "완료" },
+];
 
 export function SubNotebookView({
   series,
@@ -21,17 +30,22 @@ export function SubNotebookView({
   onBack: () => void;
   onOpenShort: (shortId: string) => void;
 }) {
-  const { state, updateSubNotebook, deleteSubNotebook, addIdea } = useApp();
+  const { state, updateSubNotebook, deleteSubNotebook, addIdea, duplicateShort, deleteShort } = useApp();
   const sub = series.subNotebooks?.find((s) => s.id === subId);
   const [openNew, setOpenNew] = useState(false);
   const [ideaDraft, setIdeaDraft] = useState({ title: "", description: "" });
+  const [filter, setFilter] = useState<StatusFilter>("all");
+
+  const allShorts = series.shorts.filter((sh) => sh.subNotebookId === subId);
+  const counts = useMemo(() => {
+    const c = { all: 0, draft: 0, in_progress: 0, completed: 0 } as Record<StatusFilter, number>;
+    for (const sh of allShorts) { c.all++; c[shortStatus(sh)]++; }
+    return c;
+  }, [allShorts]);
+  const shorts = allShorts.filter((sh) => filter === "all" || shortStatus(sh) === filter);
+  const ideas = state.ideas.filter((i) => i.pinnedSubNotebookId === subId);
 
   if (!sub) return null;
-
-  const shorts = series.shorts.filter((sh) => sh.subNotebookId === subId);
-  const ideas = state.ideas.filter(
-    (i) => i.pinnedSubNotebookId === subId,
-  );
 
   const quickAddIdea = () => {
     if (!ideaDraft.title.trim()) return;
@@ -101,9 +115,26 @@ export function SubNotebookView({
               <Plus className="size-4 mr-1" /> 새 쇼츠 만들기
             </Button>
           </div>
+          <div className="mb-3 flex flex-wrap gap-1.5">
+            {FILTERS.map((f) => (
+              <button
+                key={f.id}
+                onClick={() => setFilter(f.id)}
+                className={`rounded-full border px-2.5 py-1 text-xs transition ${
+                  filter === f.id
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-card hover:bg-muted"
+                }`}
+              >
+                {f.label} <span className="tabular-nums opacity-70">({counts[f.id]})</span>
+              </button>
+            ))}
+          </div>
           {shorts.length === 0 ? (
             <div className="text-center text-sm text-muted-foreground py-8">
-              아직 이 하위 노트북의 쇼츠가 없어요.
+              {counts.all === 0
+                ? "아직 이 하위 노트북의 쇼츠가 없어요."
+                : "이 필터에 해당하는 쇼츠가 없어요."}
             </div>
           ) : (
             <div className="grid gap-2 sm:grid-cols-2">
@@ -111,7 +142,16 @@ export function SubNotebookView({
                 <ShortCard
                   key={sh.id}
                   sh={sh}
+                  series={series}
                   onOpen={() => onOpenShort(sh.id)}
+                  onDuplicate={() => {
+                    const id = duplicateShort(series.id, sh.id);
+                    if (id) toast.success("쇼츠를 복제했어요");
+                  }}
+                  onDelete={() => {
+                    if (confirm(`"${sh.title}" 쇼츠를 삭제할까요?`))
+                      deleteShort(series.id, sh.id);
+                  }}
                 />
               ))}
             </div>

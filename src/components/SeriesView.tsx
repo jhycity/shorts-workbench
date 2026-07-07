@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useApp } from "@/lib/app-context";
-import type { Series } from "@/lib/types";
+import type { Series, Short } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,13 +12,31 @@ import {
   Lightbulb,
   Library,
   FolderPlus,
+  Pencil,
+  Copy,
 } from "lucide-react";
 import { TREND_INBOX_PLACEHOLDERS } from "@/lib/presets";
 import { NewShortDialog } from "./NewShortDialog";
-import { notebookProgress } from "@/lib/store";
+import { NewSeriesDialog } from "./NewSeriesDialog";
+import {
+  notebookProgress,
+  currentStepIndex,
+  shortStatus,
+  type ShortStatus,
+} from "@/lib/store";
 import { IdeasManager, FormatsManager } from "./Managers";
 import { toast } from "sonner";
 import { uid } from "@/lib/presets";
+import { NOTEBOOK_META, NOTEBOOK_ORDER } from "@/lib/types";
+
+type StatusFilter = "all" | ShortStatus;
+
+const FILTERS: { id: StatusFilter; label: string }[] = [
+  { id: "all", label: "전체" },
+  { id: "draft", label: "초안" },
+  { id: "in_progress", label: "진행 중" },
+  { id: "completed", label: "완료" },
+];
 
 export function SeriesView({
   series,
@@ -38,11 +56,15 @@ export function SeriesView({
     addSubNotebook,
     deleteSubNotebook,
     addIdea,
+    duplicateShort,
+    deleteShort,
   } = useApp();
   const [openNew, setOpenNew] = useState(false);
+  const [openEdit, setOpenEdit] = useState(false);
   const [openMgr, setOpenMgr] = useState<null | "ideas" | "formats">(null);
   const [subDraft, setSubDraft] = useState("");
   const [ideaDraft, setIdeaDraft] = useState({ title: "", description: "" });
+  const [filter, setFilter] = useState<StatusFilter>("all");
 
   const relatedIdeas = state.ideas.filter(
     (i) => i.pinnedSeriesId === series.id,
@@ -85,7 +107,21 @@ export function SeriesView({
   };
 
   const subs = series.subNotebooks ?? [];
-  const topLevelShorts = series.shorts.filter((sh) => !sh.subNotebookId);
+  const counts = useMemo(() => {
+    const c = { all: 0, draft: 0, in_progress: 0, completed: 0 } as Record<
+      StatusFilter,
+      number
+    >;
+    for (const sh of series.shorts) {
+      c.all++;
+      c[shortStatus(sh)]++;
+    }
+    return c;
+  }, [series.shorts]);
+
+  const shownShorts = series.shorts.filter(
+    (sh) => filter === "all" || shortStatus(sh) === filter,
+  );
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-8">
@@ -123,11 +159,14 @@ export function SeriesView({
           </div>
         </div>
         <div className="flex gap-1">
+          <Button variant="outline" size="sm" onClick={() => setOpenEdit(true)}>
+            <Pencil className="size-4 mr-1" /> 수정
+          </Button>
           <Button variant="ghost" size="sm" onClick={() => setOpenMgr("ideas")}>
-            <Lightbulb className="size-4 mr-1" /> 전역 아이디어
+            <Lightbulb className="size-4 mr-1" /> 아이디어
           </Button>
           <Button variant="ghost" size="sm" onClick={() => setOpenMgr("formats")}>
-            <Library className="size-4 mr-1" /> 전역 포맷
+            <Library className="size-4 mr-1" /> 포맷
           </Button>
           <Button
             variant="ghost"
@@ -208,7 +247,6 @@ export function SeriesView({
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        {/* 좌: 트렌드 입력함 */}
         <div className="lg:col-span-2 rounded-xl border bg-paper p-5">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-semibold">📥 트렌드 입력함</h2>
@@ -239,7 +277,6 @@ export function SeriesView({
           </div>
         </div>
 
-        {/* 우: 아이디어 빠른 추가 + 관련 */}
         <div className="space-y-4">
           <div className="rounded-xl border bg-paper p-4">
             <h3 className="font-semibold text-sm mb-2 flex items-center gap-1">
@@ -280,10 +317,7 @@ export function SeriesView({
             ) : (
               <ul className="space-y-1.5">
                 {relatedIdeas.slice(0, 6).map((i) => (
-                  <li
-                    key={i.id}
-                    className="rounded-md border bg-card p-2 text-xs"
-                  >
+                  <li key={i.id} className="rounded-md border bg-card p-2 text-xs">
                     <div className="font-medium">{i.title}</div>
                     {i.description && (
                       <div className="mt-0.5 text-muted-foreground line-clamp-2">
@@ -310,30 +344,58 @@ export function SeriesView({
         </div>
       </div>
 
-      {/* 쇼츠 목록 (하위 미분류) */}
+      {/* 쇼츠 목록 (전체) */}
       <div className="mt-6 rounded-xl border bg-paper p-5">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
           <div>
             <h2 className="font-semibold">🎬 쇼츠 프로젝트</h2>
             <p className="text-[11px] text-muted-foreground mt-0.5">
-              하위 노트북에 속하지 않은 쇼츠 · 하위 노트북별 쇼츠는 각 하위 노트북 안에서 관리
+              이 노트북의 모든 쇼츠 · 하위 노트북 소속 여부와 관계없이 표시
             </p>
           </div>
           <Button size="sm" onClick={() => setOpenNew(true)}>
             <Plus className="size-4 mr-1" /> 새 쇼츠 만들기
           </Button>
         </div>
-        {topLevelShorts.length === 0 ? (
+
+        <div className="mb-3 flex flex-wrap gap-1.5">
+          {FILTERS.map((f) => (
+            <button
+              key={f.id}
+              onClick={() => setFilter(f.id)}
+              className={`rounded-full border px-2.5 py-1 text-xs transition ${
+                filter === f.id
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-card hover:bg-muted"
+              }`}
+            >
+              {f.label} <span className="tabular-nums opacity-70">({counts[f.id]})</span>
+            </button>
+          ))}
+        </div>
+
+        {shownShorts.length === 0 ? (
           <div className="text-center text-sm text-muted-foreground py-8">
-            아직 쇼츠가 없어요.
+            {counts.all === 0
+              ? "아직 쇼츠가 없어요. 위 [새 쇼츠 만들기]를 눌러 시작하세요."
+              : "이 필터에 해당하는 쇼츠가 없어요."}
           </div>
         ) : (
           <div className="grid gap-2 sm:grid-cols-2">
-            {topLevelShorts.map((sh) => (
+            {shownShorts.map((sh) => (
               <ShortCard
                 key={sh.id}
                 sh={sh}
+                series={series}
                 onOpen={() => onOpenShort(sh.id)}
+                onDuplicate={() => {
+                  const id = duplicateShort(series.id, sh.id);
+                  if (id) toast.success("쇼츠를 복제했어요");
+                }}
+                onDelete={() => {
+                  if (confirm(`"${sh.title}" 쇼츠를 삭제할까요?`))
+                    deleteShort(series.id, sh.id);
+                }}
               />
             ))}
           </div>
@@ -345,6 +407,11 @@ export function SeriesView({
         onOpenChange={setOpenNew}
         series={series}
         onCreated={(id) => onOpenShort(id)}
+      />
+      <NewSeriesDialog
+        open={openEdit}
+        onOpenChange={setOpenEdit}
+        editSeries={series}
       />
       <IdeasManager
         open={openMgr === "ideas"}
@@ -361,59 +428,86 @@ export function SeriesView({
 
 export function ShortCard({
   sh,
+  series,
   onOpen,
+  onDuplicate,
+  onDelete,
 }: {
-  sh: import("@/lib/types").Short;
+  sh: Short;
+  series: Series;
   onOpen: () => void;
+  onDuplicate?: () => void;
+  onDelete?: () => void;
 }) {
   const p = notebookProgress(sh);
-  const finalizeDone = sh.notebooks.finalize.status === "done";
+  const status = shortStatus(sh);
+  const step = currentStepIndex(sh);
+  const stepMeta = NOTEBOOK_META[NOTEBOOK_ORDER[Math.min(step, NOTEBOOK_ORDER.length) - 1]];
+  const subName = series.subNotebooks?.find((s) => s.id === sh.subNotebookId)?.name;
   return (
-    <button
-      onClick={onOpen}
-      className="text-left rounded-lg border bg-card p-3 hover:bg-muted transition"
-    >
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <div className="font-medium text-sm">{sh.title}</div>
-          <div className="mt-1 flex flex-wrap gap-1">
-            <Badge variant="outline" className="text-[10px]">
-              출발: {sourceLabel(sh.sourceType)}
-            </Badge>
-            {sh.isDraft && (
-              <Badge variant="secondary" className="text-[10px]">
-                임시 저장
-              </Badge>
-            )}
-            {finalizeDone && (
-              <Badge className="text-[10px] bg-success text-success-foreground">
-                완료
-              </Badge>
-            )}
+    <div className="group relative rounded-lg border bg-card p-3 hover:bg-muted transition">
+      <button onClick={onOpen} className="absolute inset-0" aria-label="열기" />
+      <div className="pointer-events-none relative">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <div className="font-medium text-sm truncate">{sh.title}</div>
+            <div className="mt-1 flex flex-wrap gap-1">
+              {status === "completed" && (
+                <Badge className="text-[10px] bg-success text-success-foreground">완료</Badge>
+              )}
+              {status === "in_progress" && (
+                <Badge variant="secondary" className="text-[10px]">진행 중</Badge>
+              )}
+              {status === "draft" && (
+                <Badge variant="outline" className="text-[10px]">초안</Badge>
+              )}
+              {subName && (
+                <Badge variant="outline" className="text-[10px]">📂 {subName}</Badge>
+              )}
+            </div>
           </div>
+          <ArrowRight className="size-4 text-muted-foreground mt-1 shrink-0" />
         </div>
-        <ArrowRight className="size-4 text-muted-foreground mt-1" />
+        <div className="mt-2 h-1.5 rounded bg-muted">
+          <div className="h-full rounded bg-primary" style={{ width: `${p.pct}%` }} />
+        </div>
+        <div className="mt-1 flex items-center justify-between text-[11px] text-muted-foreground">
+          <span>
+            {status === "completed"
+              ? `모든 단계 완료`
+              : `현재 ${step}/${p.total}단계 · ${stepMeta?.title ?? ""}`}
+          </span>
+          <span>{new Date(sh.updatedAt).toLocaleDateString()}</span>
+        </div>
       </div>
-      <div className="mt-2 h-1.5 rounded bg-muted">
-        <div
-          className="h-full rounded bg-primary"
-          style={{ width: `${p.pct}%` }}
-        />
-      </div>
-      <div className="mt-1 text-[11px] text-muted-foreground">
-        {p.done}/{p.total} 단계 완료
-      </div>
-    </button>
-  );
-}
-
-function sourceLabel(t: string) {
-  return (
-    {
-      trend: "📥 트렌드",
-      idea: "💡 아이디어",
-      format: "📚 포맷",
-      blank: "✨ 빈 상태",
-    }[t] ?? t
+      {(onDuplicate || onDelete) && (
+        <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition">
+          {onDuplicate && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDuplicate();
+              }}
+              className="rounded p-1 bg-background border text-muted-foreground hover:text-foreground"
+              title="복제"
+            >
+              <Copy className="size-3.5" />
+            </button>
+          )}
+          {onDelete && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+              className="rounded p-1 bg-background border text-muted-foreground hover:text-destructive"
+              title="삭제"
+            >
+              <Trash2 className="size-3.5" />
+            </button>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
