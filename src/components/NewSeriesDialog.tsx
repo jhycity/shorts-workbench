@@ -321,7 +321,7 @@ export function NewSeriesDialog({ open, onOpenChange, onCreated, editSeries }: P
             취소
           </Button>
           <Button onClick={submit} disabled={!canSubmit}>
-            키워드 노트북 만들기
+            {isEdit ? "저장" : "키워드 노트북 만들기"}
           </Button>
         </DialogFooter>
       </DialogContent>
