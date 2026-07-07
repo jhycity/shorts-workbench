@@ -44,6 +44,7 @@ export function SubNotebookView({
   }, [allShorts]);
   const shorts = allShorts.filter((sh) => filter === "all" || shortStatus(sh) === filter);
   const ideas = state.ideas.filter((i) => i.pinnedSubNotebookId === subId);
+
   if (!sub) return null;
 
   const quickAddIdea = () => {
