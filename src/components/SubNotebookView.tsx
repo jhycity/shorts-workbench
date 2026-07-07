@@ -115,9 +115,26 @@ export function SubNotebookView({
               <Plus className="size-4 mr-1" /> 새 쇼츠 만들기
             </Button>
           </div>
+          <div className="mb-3 flex flex-wrap gap-1.5">
+            {FILTERS.map((f) => (
+              <button
+                key={f.id}
+                onClick={() => setFilter(f.id)}
+                className={`rounded-full border px-2.5 py-1 text-xs transition ${
+                  filter === f.id
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-card hover:bg-muted"
+                }`}
+              >
+                {f.label} <span className="tabular-nums opacity-70">({counts[f.id]})</span>
+              </button>
+            ))}
+          </div>
           {shorts.length === 0 ? (
             <div className="text-center text-sm text-muted-foreground py-8">
-              아직 이 하위 노트북의 쇼츠가 없어요.
+              {counts.all === 0
+                ? "아직 이 하위 노트북의 쇼츠가 없어요."
+                : "이 필터에 해당하는 쇼츠가 없어요."}
             </div>
           ) : (
             <div className="grid gap-2 sm:grid-cols-2">
@@ -125,7 +142,16 @@ export function SubNotebookView({
                 <ShortCard
                   key={sh.id}
                   sh={sh}
+                  series={series}
                   onOpen={() => onOpenShort(sh.id)}
+                  onDuplicate={() => {
+                    const id = duplicateShort(series.id, sh.id);
+                    if (id) toast.success("쇼츠를 복제했어요");
+                  }}
+                  onDelete={() => {
+                    if (confirm(`"${sh.title}" 쇼츠를 삭제할까요?`))
+                      deleteShort(series.id, sh.id);
+                  }}
                 />
               ))}
             </div>
