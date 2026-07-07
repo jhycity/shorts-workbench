@@ -50,6 +50,7 @@ interface Ctx {
   deleteSubNotebook: (seriesId: string, subId: string) => void;
 
   addShort: (s: Short) => void;
+  duplicateShort: (seriesId: string, shortId: string) => string | null;
   updateShort: (
     seriesId: string,
     shortId: string,
