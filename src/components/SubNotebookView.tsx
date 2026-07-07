@@ -30,17 +30,21 @@ export function SubNotebookView({
   onBack: () => void;
   onOpenShort: (shortId: string) => void;
 }) {
-  const { state, updateSubNotebook, deleteSubNotebook, addIdea } = useApp();
+  const { state, updateSubNotebook, deleteSubNotebook, addIdea, duplicateShort, deleteShort } = useApp();
   const sub = series.subNotebooks?.find((s) => s.id === subId);
   const [openNew, setOpenNew] = useState(false);
   const [ideaDraft, setIdeaDraft] = useState({ title: "", description: "" });
+  const [filter, setFilter] = useState<StatusFilter>("all");
 
+  const allShorts = series.shorts.filter((sh) => sh.subNotebookId === subId);
+  const counts = useMemo(() => {
+    const c = { all: 0, draft: 0, in_progress: 0, completed: 0 } as Record<StatusFilter, number>;
+    for (const sh of allShorts) { c.all++; c[shortStatus(sh)]++; }
+    return c;
+  }, [allShorts]);
+  const shorts = allShorts.filter((sh) => filter === "all" || shortStatus(sh) === filter);
+  const ideas = state.ideas.filter((i) => i.pinnedSubNotebookId === subId);
   if (!sub) return null;
-
-  const shorts = series.shorts.filter((sh) => sh.subNotebookId === subId);
-  const ideas = state.ideas.filter(
-    (i) => i.pinnedSubNotebookId === subId,
-  );
 
   const quickAddIdea = () => {
     if (!ideaDraft.title.trim()) return;
