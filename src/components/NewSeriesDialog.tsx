@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useApp } from "@/lib/app-context";
 import { createSeries } from "@/lib/store";
-import type { Length } from "@/lib/types";
+import type { Length, Series } from "@/lib/types";
 import {
   SCREEN_STYLE_SUGGESTIONS,
   TAG_SUGGESTIONS,
@@ -24,12 +24,14 @@ interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   onCreated?: (seriesId: string) => void;
+  editSeries?: Series;
 }
 
 const MAX_TAGS = 3;
 
-export function NewSeriesDialog({ open, onOpenChange, onCreated }: Props) {
-  const { state, addSeries } = useApp();
+export function NewSeriesDialog({ open, onOpenChange, onCreated, editSeries }: Props) {
+  const { state, addSeries, updateSeries } = useApp();
+  const isEdit = !!editSeries;
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [tags, setTags] = useState<string[]>([]);
@@ -40,6 +42,19 @@ export function NewSeriesDialog({ open, onOpenChange, onCreated }: Props) {
   const [defaultFormatId, setDefaultFormatId] = useState<string>("");
   const [defaultVoice, setDefaultVoice] = useState("");
   const [defaultSubtitleStyle, setDefaultSubtitleStyle] = useState("");
+
+  useEffect(() => {
+    if (!open || !editSeries) return;
+    setTitle(editSeries.title);
+    setDescription(editSeries.description);
+    setTags(editSeries.tags ?? []);
+    setDefaultLength(editSeries.defaultLength);
+    setDefaultTone(editSeries.defaultTone);
+    setDefaultScreenStyle(editSeries.defaultScreenStyle);
+    setDefaultFormatId(editSeries.defaultFormatId ?? "");
+    setDefaultVoice(editSeries.defaultVoice ?? "");
+    setDefaultSubtitleStyle(editSeries.defaultSubtitleStyle ?? "");
+  }, [open, editSeries]);
 
   const toggleTag = (t: string) => {
     setTags((cur) => {
@@ -78,6 +93,23 @@ export function NewSeriesDialog({ open, onOpenChange, onCreated }: Props) {
 
   const submit = () => {
     if (!canSubmit) return;
+    if (isEdit && editSeries) {
+      updateSeries(editSeries.id, (s) => ({
+        ...s,
+        title: title.trim(),
+        description: description.trim(),
+        tags,
+        defaultLength,
+        defaultTone: defaultTone.trim(),
+        defaultScreenStyle: defaultScreenStyle.trim(),
+        defaultFormatId: defaultFormatId || undefined,
+        defaultVoice: defaultVoice.trim() || undefined,
+        defaultSubtitleStyle: defaultSubtitleStyle.trim() || undefined,
+      }));
+      toast.success("저장했어요");
+      onOpenChange(false);
+      return;
+    }
     const se = createSeries({
       title: title.trim(),
       description: description.trim(),
