@@ -235,15 +235,29 @@ export function SeriesView({
                       쇼츠 {count}개
                     </div>
                   </button>
-                  <button
-                    onClick={() => {
-                      if (confirm(`"${sb.name}" 하위 노트북을 삭제할까요?`))
-                        deleteSubNotebook(series.id, sb.id);
-                    }}
-                    className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition"
-                  >
-                    <Trash2 className="size-4" />
-                  </button>
+                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition">
+                    <button
+                      onClick={() => {
+                        setEditSubId(sb.id);
+                        setEditSubDraft({ name: sb.name, description: sb.description });
+                      }}
+                      className="text-muted-foreground hover:text-foreground"
+                      title="수정"
+                    >
+                      <Pencil className="size-4" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (confirm(`"${sb.name}" 하위 노트북을 삭제할까요?`))
+                          deleteSubNotebook(series.id, sb.id);
+                      }}
+                      className="text-muted-foreground hover:text-destructive"
+                      title="삭제"
+                    >
+                      <Trash2 className="size-4" />
+                    </button>
+                  </div>
+
                 </div>
               );
             })}
