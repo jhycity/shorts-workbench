@@ -329,7 +329,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
                   ...se,
                   shorts: se.shorts.map((sh) =>
                     sh.id === shortId
-                      ? { ...updater(sh), updatedAt: Date.now() }
+                      ? syncShortDerived({ ...updater(sh), updatedAt: Date.now() })
                       : sh,
                   ),
                   updatedAt: Date.now(),
@@ -337,6 +337,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
               : se,
           ),
         })),
+
       deleteShort: (seriesId, shortId) =>
         setState((st) => ({
           ...st,
