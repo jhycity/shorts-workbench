@@ -135,6 +135,9 @@ export interface Short {
   sourceRef?: string;
   materials: Material[];
   isDraft?: boolean;
+  status?: "draft" | "in_progress" | "completed";
+  currentStep?: number;
+  completedSteps?: NotebookId[];
   createdAt: number;
   updatedAt: number;
   notebooks: {
@@ -148,6 +151,7 @@ export interface Short {
   };
   unlocked: Record<NotebookId, boolean>;
 }
+
 
 export interface SubNotebook {
   id: string;
