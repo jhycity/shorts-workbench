@@ -386,6 +386,27 @@ export function FormatsManager({
                 </Button>
               </div>
               <div className="mt-2 grid gap-2 text-sm">
+                <div className="flex items-center gap-2">
+                  <Label className="text-xs w-16">포맷 유형</Label>
+                  <select
+                    className="rounded-md border bg-background px-2 py-1 text-xs"
+                    value={f.formatType ?? "standard"}
+                    onChange={(e) =>
+                      updateFormat(f.id, {
+                        formatType: e.target.value as Format["formatType"],
+                      })
+                    }
+                  >
+                    <option value="standard">일반</option>
+                    <option value="ranking">랭킹형</option>
+                  </select>
+                  {f.formatType === "ranking" && (
+                    <RankingCountPicker
+                      value={f.rankingCount ?? 5}
+                      onChange={(n) => updateFormat(f.id, { rankingCount: n })}
+                    />
+                  )}
+                </div>
                 <Input
                   placeholder="구조"
                   value={f.structure}
@@ -407,6 +428,7 @@ export function FormatsManager({
                   onChange={(e) => updateFormat(f.id, { variations: e.target.value })}
                 />
               </div>
+
               <MultiSelect
                 label="어울리는 콘텐츠라인"
                 options={state.contentLines.map((c) => ({ id: c.id, label: `${c.emoji} ${c.name}` }))}
