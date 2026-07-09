@@ -441,6 +441,22 @@ export function SeriesView({
         open={openMgr === "formats"}
         onOpenChange={(v) => setOpenMgr(v ? "formats" : null)}
       />
+      <EditSubDialog
+        open={!!editSubId}
+        onOpenChange={(v) => !v && setEditSubId(null)}
+        value={editSubDraft}
+        onChange={setEditSubDraft}
+        onSave={() => {
+          if (!editSubId) return;
+          updateSubNotebook(series.id, editSubId, {
+            name: editSubDraft.name.trim() || "이름 없음",
+            description: editSubDraft.description,
+          });
+          setEditSubId(null);
+          toast.success("하위 노트북을 수정했어요");
+        }}
+      />
+
     </div>
   );
 }
