@@ -85,6 +85,9 @@ export function createShort(input: {
     sourceRef: input.sourceRef,
     materials: input.materials ?? [],
     isDraft: input.isDraft,
+    status: "draft",
+    currentStep: 1,
+    completedSteps: [],
     createdAt: now,
     updatedAt: now,
     notebooks: {
@@ -105,6 +108,7 @@ export function createShort(input: {
     unlocked: emptyUnlocked(),
   };
 }
+
 
 export function createSeries(input: {
   title: string;
@@ -264,12 +268,60 @@ function migrateShort(sh: any, seriesId: string): Short {
   return newShort;
 }
 
+function hasAnyContent(sh: Short): boolean {
+  const nb = sh.notebooks;
+  if (nb.source.note?.trim()) return true;
+  for (const k of ["topic", "hook", "script"] as const) {
+    const cn = nb[k];
+    if (cn.selectedId) return true;
+    if (cn.candidates.some((c) => c.text?.trim())) return true;
+    if (cn.status !== "todo") return true;
+  }
+  if (nb.title.selectedTitleId || nb.title.selectedThumbId) return true;
+  if (nb.title.titles.some((c) => c.text?.trim())) return true;
+  if (nb.title.thumbs.some((c) => c.text?.trim())) return true;
+  if (nb.title.status !== "todo") return true;
+  const g = nb.guide;
+  if ([g.tts, g.subtitleTempo, g.screenStyle, g.sceneComposition, g.brollIdeas, g.editorNote].some((v) => v?.trim())) return true;
+  if (g.status !== "todo") return true;
+  const f = nb.finalize;
+  if ([f.copyrightNote, f.aiDisclosureNote, f.myTakeNote, f.factCheckNote, f.uploadTitle, f.uploadDescription, f.uploadHashtags].some((v) => v?.trim())) return true;
+  if (f.checks.some((c) => c.checked)) return true;
+  if (f.status !== "todo") return true;
+  if (sh.materials?.length) return true;
+  return false;
+}
+
+export function syncShortDerived(sh: Short): Short {
+  const completedSteps = NOTEBOOK_ORDER.filter((id) => sh.notebooks[id].status === "done");
+  const firstUnfinished = NOTEBOOK_ORDER.findIndex((id) => sh.notebooks[id].status !== "done");
+  const currentStep = firstUnfinished === -1 ? NOTEBOOK_ORDER.length : firstUnfinished + 1;
+
+  let status: "draft" | "in_progress" | "completed" = sh.status ?? "draft";
+  // 완료는 명시적 최종 완료 버튼으로만 유지 (자동 승격 금지)
+  if (status !== "completed") {
+    status = hasAnyContent(sh) ? "in_progress" : "draft";
+  }
+  return { ...sh, status, currentStep, completedSteps };
+}
+
 function normalize(s: AppState): AppState {
   return {
     ...s,
     contentLines: s.contentLines ?? [],
     ideas: s.ideas ?? [],
-    formats: s.formats ?? [],
+    formats: (s.formats ?? []).map((f) => {
+      // 기존 "TOP5 랭킹형" → "TOP N 랭킹형"으로 이름 정규화
+      if (f.name === "TOP5 랭킹형") {
+        return {
+          ...f,
+          name: "TOP N 랭킹형",
+          formatType: f.formatType ?? "ranking",
+          rankingCount: f.rankingCount ?? 5,
+        };
+      }
+      return f;
+    }),
     series: (s.series ?? []).map((se) => ({
       ...se,
       tags: se.tags ?? [],
@@ -282,11 +334,18 @@ function normalize(s: AppState): AppState {
         myAngle: "",
         avoid: "",
       },
-      shorts: (se.shorts ?? []).map((sh) => ({
-        ...sh,
-        materials: sh.materials ?? [],
-        unlocked: sh.unlocked ?? emptyUnlocked(),
-      })),
+      shorts: (se.shorts ?? []).map((sh) => {
+        const base: Short = {
+          ...sh,
+          materials: sh.materials ?? [],
+          unlocked: sh.unlocked ?? emptyUnlocked(),
+        };
+        // 최종 완료 조건: finalize done 이면 completed로 승격 (기존 데이터 복구)
+        const inheritedStatus: Short["status"] =
+          sh.status ??
+          (sh.notebooks?.finalize?.status === "done" ? "completed" : undefined);
+        return syncShortDerived({ ...base, status: inheritedStatus });
+      }),
     })),
   };
 }
@@ -304,11 +363,35 @@ export function exportBackup(state: AppState): string {
   return JSON.stringify(state, null, 2);
 }
 
+export type ImportedPayload =
+  | { kind: "full"; state: AppState }
+  | { kind: "series"; series: Series }
+  | { kind: "ideas"; ideas: any[] }
+  | { kind: "formats"; formats: any[] }
+  | { kind: "sub"; seriesTitle?: string; subNotebook: any; shorts: any[] }
+  | { kind: "short"; seriesTitle?: string; short: any };
+
+export function detectImport(json: string): ImportedPayload {
+  let parsed: any;
+  try {
+    parsed = JSON.parse(json);
+  } catch {
+    throw new Error("올바른 JSON 파일이 아닙니다.");
+  }
+  if (parsed?.schemaVersion === 3) return { kind: "full", state: normalize(parsed) };
+  if (parsed?.schemaVersion === 2) return { kind: "full", state: migrateFromV2(parsed) };
+  if (parsed?.type === "series" && parsed.series) return { kind: "series", series: parsed.series };
+  if (parsed?.type === "ideas" && Array.isArray(parsed.ideas)) return { kind: "ideas", ideas: parsed.ideas };
+  if (parsed?.type === "formats" && Array.isArray(parsed.formats)) return { kind: "formats", formats: parsed.formats };
+  if (parsed?.type === "sub" && parsed.subNotebook) return { kind: "sub", ...parsed };
+  if (parsed?.type === "short" && parsed.short) return { kind: "short", ...parsed };
+  throw new Error("지원하지 않는 백업 구조입니다.");
+}
+
 export function importBackup(json: string): AppState {
-  const parsed = JSON.parse(json);
-  if (parsed?.schemaVersion === 3) return normalize(parsed);
-  if (parsed?.schemaVersion === 2) return migrateFromV2(parsed);
-  throw new Error("스키마 버전을 알 수 없어요");
+  const d = detectImport(json);
+  if (d.kind === "full") return d.state;
+  throw new Error("이 파일은 전체 백업이 아니에요. '백업 불러오기'에서 선택 다이얼로그를 사용하세요.");
 }
 
 // ----- 진행률/잠금 -----
@@ -338,10 +421,15 @@ export function nextStep(s: Short): NotebookId | null {
 export type ShortStatus = "draft" | "in_progress" | "completed";
 
 export function shortStatus(sh: Short): ShortStatus {
+  if (sh.status === "completed") return "completed";
+  if (sh.status === "in_progress") return "in_progress";
+  if (sh.status === "draft") return "draft";
+  // 마이그레이션 fallback
   if (sh.notebooks.finalize.status === "done") return "completed";
-  if (sh.isDraft) return "draft";
-  return "in_progress";
+  if (hasAnyContent(sh)) return "in_progress";
+  return "draft";
 }
+
 
 export function seriesStats(s: Series) {
   const total = s.shorts.length;

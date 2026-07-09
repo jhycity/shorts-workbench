@@ -50,7 +50,10 @@ export interface Format {
   risks: string;
   variations: string;
   isCustom?: boolean;
+  formatType?: "ranking" | "standard";
+  rankingCount?: number;
 }
+
 
 export interface TrendInbox {
   keywords: string;
@@ -132,6 +135,9 @@ export interface Short {
   sourceRef?: string;
   materials: Material[];
   isDraft?: boolean;
+  status?: "draft" | "in_progress" | "completed";
+  currentStep?: number;
+  completedSteps?: NotebookId[];
   createdAt: number;
   updatedAt: number;
   notebooks: {
@@ -145,6 +151,7 @@ export interface Short {
   };
   unlocked: Record<NotebookId, boolean>;
 }
+
 
 export interface SubNotebook {
   id: string;

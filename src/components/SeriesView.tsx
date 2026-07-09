@@ -5,6 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
 import {
   Plus,
   Trash2,
@@ -55,6 +65,8 @@ export function SeriesView({
     deleteSeries,
     addSubNotebook,
     deleteSubNotebook,
+    updateSubNotebook,
+
     addIdea,
     duplicateShort,
     deleteShort,
@@ -63,8 +75,11 @@ export function SeriesView({
   const [openEdit, setOpenEdit] = useState(false);
   const [openMgr, setOpenMgr] = useState<null | "ideas" | "formats">(null);
   const [subDraft, setSubDraft] = useState("");
+  const [editSubId, setEditSubId] = useState<string | null>(null);
+  const [editSubDraft, setEditSubDraft] = useState({ name: "", description: "" });
   const [ideaDraft, setIdeaDraft] = useState({ title: "", description: "" });
   const [filter, setFilter] = useState<StatusFilter>("all");
+
 
   const relatedIdeas = state.ideas.filter(
     (i) => i.pinnedSeriesId === series.id,
@@ -230,15 +245,29 @@ export function SeriesView({
                       쇼츠 {count}개
                     </div>
                   </button>
-                  <button
-                    onClick={() => {
-                      if (confirm(`"${sb.name}" 하위 노트북을 삭제할까요?`))
-                        deleteSubNotebook(series.id, sb.id);
-                    }}
-                    className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition"
-                  >
-                    <Trash2 className="size-4" />
-                  </button>
+                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition">
+                    <button
+                      onClick={() => {
+                        setEditSubId(sb.id);
+                        setEditSubDraft({ name: sb.name, description: sb.description });
+                      }}
+                      className="text-muted-foreground hover:text-foreground"
+                      title="수정"
+                    >
+                      <Pencil className="size-4" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (confirm(`"${sb.name}" 하위 노트북을 삭제할까요?`))
+                          deleteSubNotebook(series.id, sb.id);
+                      }}
+                      className="text-muted-foreground hover:text-destructive"
+                      title="삭제"
+                    >
+                      <Trash2 className="size-4" />
+                    </button>
+                  </div>
+
                 </div>
               );
             })}
@@ -422,9 +451,67 @@ export function SeriesView({
         open={openMgr === "formats"}
         onOpenChange={(v) => setOpenMgr(v ? "formats" : null)}
       />
+      <EditSubDialog
+        open={!!editSubId}
+        onOpenChange={(v) => !v && setEditSubId(null)}
+        value={editSubDraft}
+        onChange={setEditSubDraft}
+        onSave={() => {
+          if (!editSubId) return;
+          updateSubNotebook(series.id, editSubId, {
+            name: editSubDraft.name.trim() || "이름 없음",
+            description: editSubDraft.description,
+          });
+          setEditSubId(null);
+          toast.success("하위 노트북을 수정했어요");
+        }}
+      />
+
     </div>
   );
 }
+
+function EditSubDialog({
+  open,
+  onOpenChange,
+  value,
+  onChange,
+  onSave,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  value: { name: string; description: string };
+  onChange: (v: { name: string; description: string }) => void;
+  onSave: () => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>하위 노트북 수정</DialogTitle>
+          <DialogDescription>
+            연결된 쇼츠와 아이디어는 그대로 유지돼요.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-3">
+          <div className="grid gap-1.5">
+            <Label>이름</Label>
+            <Input value={value.name} onChange={(e) => onChange({ ...value, name: e.target.value })} />
+          </div>
+          <div className="grid gap-1.5">
+            <Label>설명</Label>
+            <Textarea rows={3} value={value.description} onChange={(e) => onChange({ ...value, description: e.target.value })} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>취소</Button>
+          <Button onClick={onSave}>저장</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 
 export function ShortCard({
   sh,

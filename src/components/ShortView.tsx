@@ -401,6 +401,18 @@ function NotebookView({
                   series={series}
                   short={short}
                   onChange={(d) => patch("finalize", d)}
+                  onFinalComplete={() => {
+                    updateShort(series.id, short.id, (s) => ({
+                      ...s,
+                      status: "completed",
+                      notebooks: {
+                        ...s.notebooks,
+                        finalize: { ...s.notebooks.finalize, status: "done" },
+                      },
+                    }));
+                    toast.success("쇼츠를 최종 완료했어요");
+                    onBack();
+                  }}
                 />
               );
           }
@@ -421,9 +433,10 @@ function NotebookView({
             onBack();
           }}
         >
-          <CheckCircle2 className="size-4 mr-1.5" /> 완료하고 돌아가기
+          <CheckCircle2 className="size-4 mr-1.5" /> 이 단계 완료
         </Button>
       </div>
+
     </div>
   );
 }
@@ -568,14 +581,18 @@ function FinalizeEditor({
   series,
   short,
   onChange,
+  onFinalComplete,
 }: {
   series: Series;
   short: Short;
   onChange: (d: Short["notebooks"]["finalize"]) => void;
+  onFinalComplete: () => void;
 }) {
   const data = short.notebooks.finalize;
   const set = <K extends keyof typeof data>(k: K, v: (typeof data)[K]) =>
     onChange({ ...data, [k]: v });
+  const isCompleted = short.status === "completed";
+
 
   return (
     <Tabs defaultValue="check">
@@ -618,7 +635,24 @@ function FinalizeEditor({
           <Field label="해시태그 (콤마 구분)" value={data.uploadHashtags} onChange={(v) => set("uploadHashtags", v)} placeholder="예: #20대, #AI, #쇼츠" />
         </div>
         <ExportPackage series={series} short={short} />
+        <div className="mt-6 rounded-lg border-2 border-primary/40 bg-primary/5 p-4">
+          <div className="text-sm font-semibold mb-1">🏁 최종 완료</div>
+          <p className="text-xs text-muted-foreground mb-3">
+            아래 버튼을 눌러야만 이 쇼츠가 <b>완료</b> 상태로 바뀝니다.
+            완료 후에도 언제든 다시 열어 수정할 수 있어요.
+          </p>
+          {isCompleted ? (
+            <div className="flex items-center gap-2 text-sm text-success-foreground">
+              <CheckCircle2 className="size-4 text-success" /> 이미 최종 완료된 쇼츠예요.
+            </div>
+          ) : (
+            <Button onClick={onFinalComplete} className="bg-success hover:bg-success/90">
+              <CheckCircle2 className="size-4 mr-1.5" /> 최종 완료로 표시
+            </Button>
+          )}
+        </div>
       </TabsContent>
+
     </Tabs>
   );
 }

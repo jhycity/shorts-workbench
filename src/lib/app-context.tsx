@@ -18,12 +18,16 @@ import type {
   SubNotebook,
 } from "./types";
 import {
+  detectImport,
   exportBackup,
   importBackup,
   loadAppState,
   saveAppState,
+  syncShortDerived,
+  type ImportedPayload,
 } from "./store";
 import { uid } from "./presets";
+
 
 export type SaveStatus = "idle" | "saving" | "saved";
 
@@ -36,6 +40,12 @@ interface Ctx {
   exportJson: () => string;
   exportPartial: (data: unknown) => string;
   importJson: (json: string) => void;
+  detectImportFile: (json: string) => ImportedPayload;
+  applyImport: (
+    payload: ImportedPayload,
+    opts: { mode: "replace" | "merge" | "copy" | "overwrite" },
+  ) => { series: number; sub: number; shorts: number; ideas: number; formats: number };
+
 
   addSeries: (s: Series) => void;
   updateSeries: (id: string, updater: (s: Series) => Series) => void;
@@ -126,6 +136,91 @@ export function AppProvider({ children }: { children: ReactNode }) {
       exportJson: () => exportBackup(state),
       exportPartial: (data) => JSON.stringify(data, null, 2),
       importJson: (json) => persist(importBackup(json)),
+      detectImportFile: (json) => detectImport(json),
+      applyImport: (payload, opts) => {
+        const counts = { series: 0, sub: 0, shorts: 0, ideas: 0, formats: 0 };
+        setState((st) => {
+          let next: AppState = st;
+          if (payload.kind === "full") {
+            if (opts.mode === "replace") {
+              next = payload.state;
+            } else {
+              // merge
+              const existingIds = new Set(st.series.map((s) => s.id));
+              const newSeries = payload.state.series.map((s) =>
+                existingIds.has(s.id) ? { ...s, id: uid() } : s,
+              );
+              next = {
+                ...st,
+                series: [...newSeries, ...st.series],
+                ideas: [...payload.state.ideas, ...st.ideas],
+                formats: [...payload.state.formats, ...st.formats],
+              };
+            }
+            counts.series = payload.state.series.length;
+            counts.sub = payload.state.series.reduce(
+              (n, s) => n + (s.subNotebooks?.length ?? 0),
+              0,
+            );
+            counts.shorts = payload.state.series.reduce(
+              (n, s) => n + s.shorts.length,
+              0,
+            );
+            counts.ideas = payload.state.ideas.length;
+            counts.formats = payload.state.formats.length;
+          } else if (payload.kind === "series") {
+            let series = payload.series;
+            series = {
+              ...series,
+              shorts: (series.shorts ?? []).map(syncShortDerived),
+            };
+            if (opts.mode === "copy") {
+              const newId = uid();
+              const oldSubs = series.subNotebooks ?? [];
+              const subMap = new Map(oldSubs.map((sb) => [sb.id, uid()]));
+              series = {
+                ...series,
+                id: newId,
+                subNotebooks: oldSubs.map((sb) => ({
+                  ...sb,
+                  id: subMap.get(sb.id)!,
+                })),
+                shorts: series.shorts.map((sh) => ({
+                  ...sh,
+                  id: uid(),
+                  seriesId: newId,
+                  subNotebookId: sh.subNotebookId
+                    ? subMap.get(sh.subNotebookId)
+                    : undefined,
+                })),
+              };
+              next = { ...st, series: [series, ...st.series] };
+            } else if (opts.mode === "overwrite") {
+              next = {
+                ...st,
+                series: st.series.some((s) => s.id === series.id)
+                  ? st.series.map((s) => (s.id === series.id ? series : s))
+                  : [series, ...st.series],
+              };
+            } else {
+              // merge = add
+              next = { ...st, series: [series, ...st.series] };
+            }
+            counts.series = 1;
+            counts.sub = series.subNotebooks?.length ?? 0;
+            counts.shorts = series.shorts.length;
+          } else if (payload.kind === "ideas") {
+            next = { ...st, ideas: [...payload.ideas, ...st.ideas] };
+            counts.ideas = payload.ideas.length;
+          } else if (payload.kind === "formats") {
+            next = { ...st, formats: [...payload.formats, ...st.formats] };
+            counts.formats = payload.formats.length;
+          }
+          return next;
+        });
+        return counts;
+      },
+
 
       addSeries: (s) =>
         setState((st) => ({ ...st, series: [s, ...st.series] })),
@@ -207,14 +302,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const src = se?.shorts.find((x) => x.id === shortId);
         if (!src) return null;
         const now = Date.now();
-        const copy: Short = {
+        const copy: Short = syncShortDerived({
           ...JSON.parse(JSON.stringify(src)),
           id: uid(),
           title: `${src.title} (사본)`,
           isDraft: true,
+          status: "in_progress",
           createdAt: now,
           updatedAt: now,
-        };
+        });
         setState((st) => ({
           ...st,
           series: st.series.map((s) =>
@@ -225,6 +321,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }));
         return copy.id;
       },
+
       updateShort: (seriesId, shortId, updater) =>
         setState((st) => ({
           ...st,
@@ -234,7 +331,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
                   ...se,
                   shorts: se.shorts.map((sh) =>
                     sh.id === shortId
-                      ? { ...updater(sh), updatedAt: Date.now() }
+                      ? syncShortDerived({ ...updater(sh), updatedAt: Date.now() })
                       : sh,
                   ),
                   updatedAt: Date.now(),
@@ -242,6 +339,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
               : se,
           ),
         })),
+
       deleteShort: (seriesId, shortId) =>
         setState((st) => ({
           ...st,

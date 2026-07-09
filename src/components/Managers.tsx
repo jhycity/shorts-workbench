@@ -351,8 +351,11 @@ export function FormatsManager({
       pros: "",
       risks: "",
       variations: "",
+      formatType: "standard",
+      rankingCount: 5,
     };
   }
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -383,6 +386,27 @@ export function FormatsManager({
                 </Button>
               </div>
               <div className="mt-2 grid gap-2 text-sm">
+                <div className="flex items-center gap-2">
+                  <Label className="text-xs w-16">포맷 유형</Label>
+                  <select
+                    className="rounded-md border bg-background px-2 py-1 text-xs"
+                    value={f.formatType ?? "standard"}
+                    onChange={(e) =>
+                      updateFormat(f.id, {
+                        formatType: e.target.value as Format["formatType"],
+                      })
+                    }
+                  >
+                    <option value="standard">일반</option>
+                    <option value="ranking">랭킹형</option>
+                  </select>
+                  {f.formatType === "ranking" && (
+                    <RankingCountPicker
+                      value={f.rankingCount ?? 5}
+                      onChange={(n) => updateFormat(f.id, { rankingCount: n })}
+                    />
+                  )}
+                </div>
                 <Input
                   placeholder="구조"
                   value={f.structure}
@@ -404,6 +428,7 @@ export function FormatsManager({
                   onChange={(e) => updateFormat(f.id, { variations: e.target.value })}
                 />
               </div>
+
               <MultiSelect
                 label="어울리는 콘텐츠라인"
                 options={state.contentLines.map((c) => ({ id: c.id, label: `${c.emoji} ${c.name}` }))}
@@ -422,6 +447,26 @@ export function FormatsManager({
               value={draft.name}
               onChange={(e) => setDraft({ ...draft, name: e.target.value })}
             />
+            <div className="flex items-center gap-2">
+              <Label className="text-xs w-16">포맷 유형</Label>
+              <select
+                className="rounded-md border bg-background px-2 py-1 text-xs"
+                value={draft.formatType ?? "standard"}
+                onChange={(e) =>
+                  setDraft({ ...draft, formatType: e.target.value as Format["formatType"] })
+                }
+              >
+                <option value="standard">일반</option>
+                <option value="ranking">랭킹형</option>
+              </select>
+              {draft.formatType === "ranking" && (
+                <RankingCountPicker
+                  value={draft.rankingCount ?? 5}
+                  onChange={(n) => setDraft({ ...draft, rankingCount: n })}
+                />
+              )}
+            </div>
+
             <Input
               placeholder="구조"
               value={draft.structure}
@@ -502,6 +547,47 @@ function MultiSelect({
           );
         })}
       </div>
+    </div>
+  );
+}
+
+const RANKING_PRESETS = [3, 5, 7, 10];
+function RankingCountPicker({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (n: number) => void;
+}) {
+  const isCustom = !RANKING_PRESETS.includes(value);
+  return (
+    <div className="flex items-center gap-1">
+      {RANKING_PRESETS.map((n) => (
+        <button
+          key={n}
+          type="button"
+          onClick={() => onChange(n)}
+          className={`rounded-full border px-2 py-0.5 text-[11px] transition ${
+            !isCustom && value === n
+              ? "border-primary bg-primary/15 text-primary"
+              : "border-border bg-card hover:bg-muted"
+          }`}
+        >
+          TOP{n}
+        </button>
+      ))}
+      <Input
+        type="number"
+        min={1}
+        max={99}
+        value={isCustom ? value : ""}
+        placeholder="직접"
+        className="h-6 w-16 text-[11px]"
+        onChange={(e) => {
+          const n = parseInt(e.target.value, 10);
+          if (!isNaN(n) && n > 0) onChange(n);
+        }}
+      />
     </div>
   );
 }
