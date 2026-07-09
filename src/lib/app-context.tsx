@@ -302,14 +302,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const src = se?.shorts.find((x) => x.id === shortId);
         if (!src) return null;
         const now = Date.now();
-        const copy: Short = {
+        const copy: Short = syncShortDerived({
           ...JSON.parse(JSON.stringify(src)),
           id: uid(),
           title: `${src.title} (사본)`,
           isDraft: true,
+          status: "in_progress",
           createdAt: now,
           updatedAt: now,
-        };
+        });
         setState((st) => ({
           ...st,
           series: st.series.map((s) =>
@@ -320,6 +321,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }));
         return copy.id;
       },
+
       updateShort: (seriesId, shortId, updater) =>
         setState((st) => ({
           ...st,
