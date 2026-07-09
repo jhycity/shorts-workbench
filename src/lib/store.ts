@@ -85,6 +85,9 @@ export function createShort(input: {
     sourceRef: input.sourceRef,
     materials: input.materials ?? [],
     isDraft: input.isDraft,
+    status: "draft",
+    currentStep: 1,
+    completedSteps: [],
     createdAt: now,
     updatedAt: now,
     notebooks: {
@@ -105,6 +108,7 @@ export function createShort(input: {
     unlocked: emptyUnlocked(),
   };
 }
+
 
 export function createSeries(input: {
   title: string;
