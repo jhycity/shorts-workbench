@@ -351,8 +351,11 @@ export function FormatsManager({
       pros: "",
       risks: "",
       variations: "",
+      formatType: "standard",
+      rankingCount: 5,
     };
   }
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
