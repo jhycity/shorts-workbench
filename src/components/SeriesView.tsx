@@ -461,6 +461,48 @@ export function SeriesView({
   );
 }
 
+function EditSubDialog({
+  open,
+  onOpenChange,
+  value,
+  onChange,
+  onSave,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  value: { name: string; description: string };
+  onChange: (v: { name: string; description: string }) => void;
+  onSave: () => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>하위 노트북 수정</DialogTitle>
+          <DialogDescription>
+            연결된 쇼츠와 아이디어는 그대로 유지돼요.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-3">
+          <div className="grid gap-1.5">
+            <Label>이름</Label>
+            <Input value={value.name} onChange={(e) => onChange({ ...value, name: e.target.value })} />
+          </div>
+          <div className="grid gap-1.5">
+            <Label>설명</Label>
+            <Textarea rows={3} value={value.description} onChange={(e) => onChange({ ...value, description: e.target.value })} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>취소</Button>
+          <Button onClick={onSave}>저장</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+
 export function ShortCard({
   sh,
   series,
