@@ -550,3 +550,44 @@ function MultiSelect({
     </div>
   );
 }
+
+const RANKING_PRESETS = [3, 5, 7, 10];
+function RankingCountPicker({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (n: number) => void;
+}) {
+  const isCustom = !RANKING_PRESETS.includes(value);
+  return (
+    <div className="flex items-center gap-1">
+      {RANKING_PRESETS.map((n) => (
+        <button
+          key={n}
+          type="button"
+          onClick={() => onChange(n)}
+          className={`rounded-full border px-2 py-0.5 text-[11px] transition ${
+            !isCustom && value === n
+              ? "border-primary bg-primary/15 text-primary"
+              : "border-border bg-card hover:bg-muted"
+          }`}
+        >
+          TOP{n}
+        </button>
+      ))}
+      <Input
+        type="number"
+        min={1}
+        max={99}
+        value={isCustom ? value : ""}
+        placeholder="직접"
+        className="h-6 w-16 text-[11px]"
+        onChange={(e) => {
+          const n = parseInt(e.target.value, 10);
+          if (!isNaN(n) && n > 0) onChange(n);
+        }}
+      />
+    </div>
+  );
+}
