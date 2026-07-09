@@ -55,6 +55,8 @@ export function SeriesView({
     deleteSeries,
     addSubNotebook,
     deleteSubNotebook,
+    updateSubNotebook,
+
     addIdea,
     duplicateShort,
     deleteShort,
