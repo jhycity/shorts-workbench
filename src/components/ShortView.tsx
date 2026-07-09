@@ -581,14 +581,18 @@ function FinalizeEditor({
   series,
   short,
   onChange,
+  onFinalComplete,
 }: {
   series: Series;
   short: Short;
   onChange: (d: Short["notebooks"]["finalize"]) => void;
+  onFinalComplete: () => void;
 }) {
   const data = short.notebooks.finalize;
   const set = <K extends keyof typeof data>(k: K, v: (typeof data)[K]) =>
     onChange({ ...data, [k]: v });
+  const isCompleted = short.status === "completed";
+
 
   return (
     <Tabs defaultValue="check">
