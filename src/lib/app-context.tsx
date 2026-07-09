@@ -18,12 +18,16 @@ import type {
   SubNotebook,
 } from "./types";
 import {
+  detectImport,
   exportBackup,
   importBackup,
   loadAppState,
   saveAppState,
+  syncShortDerived,
+  type ImportedPayload,
 } from "./store";
 import { uid } from "./presets";
+
 
 export type SaveStatus = "idle" | "saving" | "saved";
 
