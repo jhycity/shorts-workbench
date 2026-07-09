@@ -63,8 +63,11 @@ export function SeriesView({
   const [openEdit, setOpenEdit] = useState(false);
   const [openMgr, setOpenMgr] = useState<null | "ideas" | "formats">(null);
   const [subDraft, setSubDraft] = useState("");
+  const [editSubId, setEditSubId] = useState<string | null>(null);
+  const [editSubDraft, setEditSubDraft] = useState({ name: "", description: "" });
   const [ideaDraft, setIdeaDraft] = useState({ title: "", description: "" });
   const [filter, setFilter] = useState<StatusFilter>("all");
+
 
   const relatedIdeas = state.ideas.filter(
     (i) => i.pinnedSeriesId === series.id,
