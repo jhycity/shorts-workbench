@@ -40,6 +40,12 @@ interface Ctx {
   exportJson: () => string;
   exportPartial: (data: unknown) => string;
   importJson: (json: string) => void;
+  detectImportFile: (json: string) => ImportedPayload;
+  applyImport: (
+    payload: ImportedPayload,
+    opts: { mode: "replace" | "merge" | "copy" | "overwrite" },
+  ) => { series: number; sub: number; shorts: number; ideas: number; formats: number };
+
 
   addSeries: (s: Series) => void;
   updateSeries: (id: string, updater: (s: Series) => Series) => void;
