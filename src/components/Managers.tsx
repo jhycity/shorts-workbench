@@ -447,6 +447,26 @@ export function FormatsManager({
               value={draft.name}
               onChange={(e) => setDraft({ ...draft, name: e.target.value })}
             />
+            <div className="flex items-center gap-2">
+              <Label className="text-xs w-16">포맷 유형</Label>
+              <select
+                className="rounded-md border bg-background px-2 py-1 text-xs"
+                value={draft.formatType ?? "standard"}
+                onChange={(e) =>
+                  setDraft({ ...draft, formatType: e.target.value as Format["formatType"] })
+                }
+              >
+                <option value="standard">일반</option>
+                <option value="ranking">랭킹형</option>
+              </select>
+              {draft.formatType === "ranking" && (
+                <RankingCountPicker
+                  value={draft.rankingCount ?? 5}
+                  onChange={(n) => setDraft({ ...draft, rankingCount: n })}
+                />
+              )}
+            </div>
+
             <Input
               placeholder="구조"
               value={draft.structure}
