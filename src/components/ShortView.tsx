@@ -401,6 +401,18 @@ function NotebookView({
                   series={series}
                   short={short}
                   onChange={(d) => patch("finalize", d)}
+                  onFinalComplete={() => {
+                    updateShort(series.id, short.id, (s) => ({
+                      ...s,
+                      status: "completed",
+                      notebooks: {
+                        ...s.notebooks,
+                        finalize: { ...s.notebooks.finalize, status: "done" },
+                      },
+                    }));
+                    toast.success("쇼츠를 최종 완료했어요");
+                    onBack();
+                  }}
                 />
               );
           }
@@ -421,9 +433,10 @@ function NotebookView({
             onBack();
           }}
         >
-          <CheckCircle2 className="size-4 mr-1.5" /> 완료하고 돌아가기
+          <CheckCircle2 className="size-4 mr-1.5" /> 이 단계 완료
         </Button>
       </div>
+
     </div>
   );
 }
