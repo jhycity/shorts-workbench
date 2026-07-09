@@ -8,13 +8,16 @@ export const SEED_CONTENT_LINES: ContentLine[] = [];
 export function seedFormats(_lineIdByName: Record<string, string>): Format[] {
   const base: Omit<Format, "id">[] = [
     {
-      name: "TOP5 랭킹형",
-      structure: "5→1 카운트다운, 항목당 5~7초, 마지막 한 줄 정리",
+      name: "TOP N 랭킹형",
+      structure: "N위→1위 카운트다운, 항목당 5~7초, 마지막 한 줄 정리",
       contentLineIds: [],
       pros: "정보 밀도가 높고 끝까지 시청률 유지에 강함",
       risks: "비슷한 랭킹이 자주 나오면 '양산형' 인상",
-      variations: "역순(1→5) / 4위에 의외 선택 / 0위(번외)",
+      variations: "역순(1→N) / 4위에 의외 선택 / 0위(번외)",
+      formatType: "ranking",
+      rankingCount: 5,
     },
+
     {
       name: "AI 시대 해석형",
       structure: "현상 제시 → AI 관점 해석 → 내 결론 한 줄",
