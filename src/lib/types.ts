@@ -50,7 +50,10 @@ export interface Format {
   risks: string;
   variations: string;
   isCustom?: boolean;
+  formatType?: "ranking" | "standard";
+  rankingCount?: number;
 }
+
 
 export interface TrendInbox {
   keywords: string;
