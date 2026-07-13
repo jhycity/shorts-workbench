@@ -78,6 +78,7 @@ export function SeriesView({
   const [editSubId, setEditSubId] = useState<string | null>(null);
   const [editSubDraft, setEditSubDraft] = useState({ name: "", description: "" });
   const [ideaDraft, setIdeaDraft] = useState({ title: "", description: "" });
+  const [trendDraft, setTrendDraft] = useState({ title: "", source: "", tags: "", note: "" });
   const [filter, setFilter] = useState<StatusFilter>("all");
 
 
