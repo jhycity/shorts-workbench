@@ -340,6 +340,29 @@ function NotebookView({
 
       <Separator className="mb-6" />
 
+      {showTrendRef && (
+        <div className="mb-4 rounded-lg border bg-accent/30 p-3">
+          <div className="text-[11px] font-semibold text-muted-foreground mb-1.5">
+            📰 참고 트렌드 자료
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {selectedTrends.map((t) => (
+              <Badge
+                key={t.id}
+                variant="outline"
+                className="border-primary/40 bg-primary/5"
+                title={t.note || undefined}
+              >
+                {t.title}
+                {t.source && (
+                  <span className="ml-1 text-muted-foreground">· {t.source}</span>
+                )}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="rounded-xl border bg-paper p-6 shadow-sm">
         {(() => {
           switch (notebookId) {
