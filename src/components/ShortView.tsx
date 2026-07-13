@@ -46,6 +46,10 @@ export function ShortView({
 
   const progress = notebookProgress(short);
   const next = nextStep(short);
+  const selectedTrends = (short.materials ?? [])
+    .filter((m) => m.kind === "trend" && m.ref)
+    .map((m) => series.trends?.find((t) => t.id === m.ref))
+    .filter((t): t is NonNullable<typeof t> => !!t);
 
   if (openId) {
     return (
