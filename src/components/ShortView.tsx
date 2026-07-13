@@ -292,6 +292,16 @@ function NotebookView({
   const { updateShort } = useApp();
   const meta = NOTEBOOK_META[notebookId];
   const nb = short.notebooks;
+  const selectedTrends = (short.materials ?? [])
+    .filter((m) => m.kind === "trend" && m.ref)
+    .map((m) => series.trends?.find((t) => t.id === m.ref))
+    .filter((t): t is NonNullable<typeof t> => !!t);
+  const showTrendRef =
+    selectedTrends.length > 0 &&
+    (notebookId === "topic" ||
+      notebookId === "hook" ||
+      notebookId === "script" ||
+      notebookId === "title");
 
   const patch = <K extends NotebookId>(id: K, data: Short["notebooks"][K]) =>
     updateShort(series.id, short.id, (s) => ({
