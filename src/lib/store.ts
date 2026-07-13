@@ -205,6 +205,7 @@ function migrateFromV2(v2: any): AppState {
     defaultTone: se.defaultTone ?? "",
     defaultScreenStyle: se.defaultScreenStyle ?? "",
     subNotebooks: [],
+    trends: [],
     trendInbox: se.trendInbox ?? {
       keywords: "",
       emotions: "",
