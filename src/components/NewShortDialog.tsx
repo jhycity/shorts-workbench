@@ -213,9 +213,9 @@ export function NewShortDialog({
             />
             <SummaryRow
               label="트렌드 입력"
-              value={isTrendSelected ? "이 노트북 트렌드 입력함" : undefined}
+              value={isTrendInboxSelected ? "이 노트북 트렌드 입력함" : undefined}
               placeholder="아직 선택 안 됨"
-              filled={isTrendSelected}
+              filled={isTrendInboxSelected}
             />
             <SummaryRow
               label="아이디어"
@@ -276,7 +276,7 @@ export function NewShortDialog({
           <div className="rounded-lg border p-2.5">
             <div className="text-xs font-semibold mb-1.5">📥 트렌드 입력에서</div>
             <SelectableCard
-              selected={isTrendSelected}
+              selected={isTrendInboxSelected}
               onClick={() => toggleMaterial({ kind: "trend" })}
               title="이 노트북 트렌드 입력함 사용"
             />
