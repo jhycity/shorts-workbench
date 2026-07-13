@@ -489,7 +489,7 @@ function SourceView({
             short.materials.length === 0
               ? "(빈 상태로 시작)"
               : short.materials
-                  .map((m) => materialLabel(m, state))
+                  .map((m) => materialLabel(m, state, series))
                   .join(" + ")
           }
         />
