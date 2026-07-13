@@ -89,7 +89,7 @@ export function NewSeriesDialog({ open, onOpenChange, onCreated, editSeries }: P
     setDefaultSubtitleStyle("");
   };
 
-  const canSubmit = title.trim() && defaultTone.trim() && defaultScreenStyle.trim();
+  const canSubmit = !!title.trim();
 
   const submit = () => {
     if (!canSubmit) return;
