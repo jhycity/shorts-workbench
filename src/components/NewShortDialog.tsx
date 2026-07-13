@@ -222,6 +222,12 @@ export function NewShortDialog({
               filled={isTrendInboxSelected}
             />
             <SummaryRow
+              label="트렌드 자료"
+              value={selectedTrendItems.join(", ")}
+              placeholder="아직 선택 안 됨"
+              filled={selectedTrendItems.length > 0}
+            />
+            <SummaryRow
               label="아이디어"
               value={selectedIdeas.join(", ")}
               placeholder="아직 선택 안 됨"
