@@ -292,6 +292,34 @@ export function NewShortDialog({
             />
           </div>
 
+          {/* 트렌드 자료 (노트북 내 개별 항목) */}
+          <div className="rounded-lg border p-2.5">
+            <div className="text-xs font-semibold mb-1.5">
+              📰 트렌드 자료에서 (0~3개)
+            </div>
+            {seriesTrends.length === 0 ? (
+              <p className="text-[11px] text-muted-foreground">
+                이 노트북에 저장된 트렌드가 없어요. 노트북에서 먼저 추가해 보세요.
+              </p>
+            ) : (
+              <div className="max-h-40 overflow-y-auto space-y-1.5">
+                {seriesTrends.map((t) => {
+                  const sel = isRefSelected(t.id);
+                  return (
+                    <SelectableCard
+                      key={t.id}
+                      selected={sel}
+                      onClick={() => toggleMaterial({ kind: "trend", ref: t.id })}
+                      title={`${t.title}${t.source ? ` · ${t.source}` : ""}`}
+                    />
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+
+
           {/* 아이디어 */}
           <div className="rounded-lg border p-2.5">
             <div className="text-xs font-semibold mb-1.5">💡 저장된 아이디어에서</div>
