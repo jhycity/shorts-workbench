@@ -9,7 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Save, Download, Upload, Check, Loader2 } from "lucide-react";
+import { Save, Download, Upload, Check, Loader2, AlertTriangle } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { BackupDialog } from "./BackupDialog";
@@ -27,6 +27,12 @@ export function SaveStatusBadge({
     return (
       <Badge variant="outline" className="gap-1">
         <Loader2 className="size-3 animate-spin" /> 저장 중…
+      </Badge>
+    );
+  if (status === "error")
+    return (
+      <Badge variant="outline" className="gap-1 border-destructive text-destructive">
+        <AlertTriangle className="size-3" /> 저장 실패
       </Badge>
     );
   return (

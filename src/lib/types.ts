@@ -160,6 +160,16 @@ export interface SubNotebook {
   createdAt: number;
 }
 
+// 노트북 내 트렌드 자료 (외부에서 관찰한 최근 소재/흐름)
+export interface TrendItem {
+  id: string;
+  title: string;
+  source: string; // 출처/플랫폼
+  tags: string[];
+  note: string;
+  createdAt: number;
+}
+
 export interface Series {
   id: string;
   title: string;
@@ -173,6 +183,7 @@ export interface Series {
   defaultSubtitleStyle?: string;
   subNotebooks: SubNotebook[];
   trendInbox: TrendInbox;
+  trends: TrendItem[];
   shorts: Short[];
   // legacy
   contentLineIds?: string[];

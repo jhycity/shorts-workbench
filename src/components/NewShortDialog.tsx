@@ -90,16 +90,16 @@ export function NewShortDialog({
   );
   const availableFormats = state.formats;
 
-  const isTrendSelected = materials.some((m) => m.kind === "trend");
+  const isTrendInboxSelected = materials.some((m) => m.kind === "trend" && !m.ref);
   const isRefSelected = (ref: string) => materials.some((m) => m.ref === ref);
   const isCustomSelected = (note: string) =>
     materials.some((m) => m.kind === "custom" && m.note === note);
 
   const toggleMaterial = (m: Omit<Material, "id">) => {
     setMaterials((cur) => {
-      // deselect trend
-      if (m.kind === "trend") {
-        const exists = cur.find((c) => c.kind === "trend");
+      // trend inbox (no ref)
+      if (m.kind === "trend" && !m.ref) {
+        const exists = cur.find((c) => c.kind === "trend" && !c.ref);
         if (exists) return cur.filter((c) => c.id !== exists.id);
         if (cur.length >= MAX_MATERIALS) {
           toast.warning("조합이 너무 많으면 결과가 흐려질 수 있어요. 핵심 재료 3개까지만 선택하세요.");
@@ -171,6 +171,10 @@ export function NewShortDialog({
   const selectedCustoms = materials
     .filter((m) => m.kind === "custom")
     .map((m) => m.note ?? "직접 입력");
+  const seriesTrends = series.trends ?? [];
+  const selectedTrendItems = materials
+    .filter((m) => m.kind === "trend" && m.ref)
+    .map((m) => seriesTrends.find((t) => t.id === m.ref)?.title ?? "트렌드");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -213,9 +217,15 @@ export function NewShortDialog({
             />
             <SummaryRow
               label="트렌드 입력"
-              value={isTrendSelected ? "이 노트북 트렌드 입력함" : undefined}
+              value={isTrendInboxSelected ? "이 노트북 트렌드 입력함" : undefined}
               placeholder="아직 선택 안 됨"
-              filled={isTrendSelected}
+              filled={isTrendInboxSelected}
+            />
+            <SummaryRow
+              label="트렌드 자료"
+              value={selectedTrendItems.join(", ")}
+              placeholder="아직 선택 안 됨"
+              filled={selectedTrendItems.length > 0}
             />
             <SummaryRow
               label="아이디어"
@@ -246,7 +256,7 @@ export function NewShortDialog({
                   onClick={() => removeMaterial(m.id)}
                   title="클릭하여 제거"
                 >
-                  <Check className="size-3" /> {materialLabel(m, state)} ×
+                  <Check className="size-3" /> {materialLabel(m, state, series)} ×
                 </Badge>
               ))}
             </div>
@@ -276,11 +286,39 @@ export function NewShortDialog({
           <div className="rounded-lg border p-2.5">
             <div className="text-xs font-semibold mb-1.5">📥 트렌드 입력에서</div>
             <SelectableCard
-              selected={isTrendSelected}
+              selected={isTrendInboxSelected}
               onClick={() => toggleMaterial({ kind: "trend" })}
               title="이 노트북 트렌드 입력함 사용"
             />
           </div>
+
+          {/* 트렌드 자료 (노트북 내 개별 항목) */}
+          <div className="rounded-lg border p-2.5">
+            <div className="text-xs font-semibold mb-1.5">
+              📰 트렌드 자료에서 (0~3개)
+            </div>
+            {seriesTrends.length === 0 ? (
+              <p className="text-[11px] text-muted-foreground">
+                이 노트북에 저장된 트렌드가 없어요. 노트북에서 먼저 추가해 보세요.
+              </p>
+            ) : (
+              <div className="max-h-40 overflow-y-auto space-y-1.5">
+                {seriesTrends.map((t) => {
+                  const sel = isRefSelected(t.id);
+                  return (
+                    <SelectableCard
+                      key={t.id}
+                      selected={sel}
+                      onClick={() => toggleMaterial({ kind: "trend", ref: t.id })}
+                      title={`${t.title}${t.source ? ` · ${t.source}` : ""}`}
+                    />
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+
 
           {/* 아이디어 */}
           <div className="rounded-lg border p-2.5">
@@ -452,8 +490,18 @@ function SelectableCard({
   );
 }
 
-function materialLabel(m: Material, state: ReturnType<typeof useApp>["state"]) {
-  if (m.kind === "trend") return "📥 트렌드";
+function materialLabel(
+  m: Material,
+  state: ReturnType<typeof useApp>["state"],
+  series?: Series,
+) {
+  if (m.kind === "trend") {
+    if (m.ref) {
+      const t = series?.trends?.find((x) => x.id === m.ref);
+      return `📰 ${t?.title ?? "트렌드"}`;
+    }
+    return "📥 트렌드 입력";
+  }
   if (m.kind === "idea")
     return `💡 ${state.ideas.find((i) => i.id === m.ref)?.title ?? "아이디어"}`;
   if (m.kind === "format")

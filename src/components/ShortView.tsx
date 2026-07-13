@@ -46,6 +46,10 @@ export function ShortView({
 
   const progress = notebookProgress(short);
   const next = nextStep(short);
+  const selectedTrends = (short.materials ?? [])
+    .filter((m) => m.kind === "trend" && m.ref)
+    .map((m) => series.trends?.find((t) => t.id === m.ref))
+    .filter((t): t is NonNullable<typeof t> => !!t);
 
   if (openId) {
     return (
@@ -142,6 +146,29 @@ export function ShortView({
           </Button>
         </div>
       </div>
+
+      {selectedTrends.length > 0 && (
+        <div className="mb-4 rounded-xl border bg-paper p-4">
+          <div className="text-xs font-semibold mb-2 text-muted-foreground">
+            📰 참고 트렌드 자료 · 주제/대본 생성 시 참고
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {selectedTrends.map((t) => (
+              <Badge
+                key={t.id}
+                variant="outline"
+                className="border-primary/40 bg-primary/5 gap-1"
+                title={t.note || undefined}
+              >
+                📰 {t.title}
+                {t.source && (
+                  <span className="text-muted-foreground">· {t.source}</span>
+                )}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="rounded-xl border bg-paper p-5 mb-6">
         <div className="flex items-center justify-between mb-2">
@@ -265,6 +292,16 @@ function NotebookView({
   const { updateShort } = useApp();
   const meta = NOTEBOOK_META[notebookId];
   const nb = short.notebooks;
+  const selectedTrends = (short.materials ?? [])
+    .filter((m) => m.kind === "trend" && m.ref)
+    .map((m) => series.trends?.find((t) => t.id === m.ref))
+    .filter((t): t is NonNullable<typeof t> => !!t);
+  const showTrendRef =
+    selectedTrends.length > 0 &&
+    (notebookId === "topic" ||
+      notebookId === "hook" ||
+      notebookId === "script" ||
+      notebookId === "title");
 
   const patch = <K extends NotebookId>(id: K, data: Short["notebooks"][K]) =>
     updateShort(series.id, short.id, (s) => ({
@@ -302,6 +339,29 @@ function NotebookView({
       </div>
 
       <Separator className="mb-6" />
+
+      {showTrendRef && (
+        <div className="mb-4 rounded-lg border bg-accent/30 p-3">
+          <div className="text-[11px] font-semibold text-muted-foreground mb-1.5">
+            📰 참고 트렌드 자료
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {selectedTrends.map((t) => (
+              <Badge
+                key={t.id}
+                variant="outline"
+                className="border-primary/40 bg-primary/5"
+                title={t.note || undefined}
+              >
+                {t.title}
+                {t.source && (
+                  <span className="ml-1 text-muted-foreground">· {t.source}</span>
+                )}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="rounded-xl border bg-paper p-6 shadow-sm">
         {(() => {
@@ -489,7 +549,7 @@ function SourceView({
             short.materials.length === 0
               ? "(빈 상태로 시작)"
               : short.materials
-                  .map((m) => materialLabel(m, state))
+                  .map((m) => materialLabel(m, state, series))
                   .join(" + ")
           }
         />
@@ -509,8 +569,18 @@ function SourceView({
   );
 }
 
-function materialLabel(m: Short["materials"][number], state: ReturnType<typeof useApp>["state"]) {
-  if (m.kind === "trend") return "📥 트렌드 입력";
+function materialLabel(
+  m: Short["materials"][number],
+  state: ReturnType<typeof useApp>["state"],
+  series?: Series,
+) {
+  if (m.kind === "trend") {
+    if (m.ref) {
+      const t = series?.trends?.find((x) => x.id === m.ref);
+      return `📰 ${t?.title ?? "트렌드"}`;
+    }
+    return "📥 트렌드 입력";
+  }
   if (m.kind === "idea") {
     const i = state.ideas.find((x) => x.id === m.ref);
     return `💡 ${i?.title ?? "아이디어"}`;

@@ -29,7 +29,7 @@ import {
 import { uid } from "./presets";
 
 
-export type SaveStatus = "idle" | "saving" | "saved";
+export type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 interface Ctx {
   state: AppState;
@@ -86,39 +86,65 @@ const AppContext = createContext<Ctx | null>(null);
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, setStateInternal] = useState<AppState>(() => loadAppState());
   const [hydrated, setHydrated] = useState(false);
-  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
   const debounceRef = useRef<number | null>(null);
+  const lastSavedJsonRef = useRef<string>("");
+
+  const contentJson = useCallback((s: AppState) => {
+    // exclude lastSavedAt from comparison so autosave stamping doesn't loop
+    const { lastSavedAt: _ignored, ...rest } = s;
+    return JSON.stringify(rest);
+  }, []);
 
   useEffect(() => {
-    setStateInternal(loadAppState());
-    setHydrated(true);
-  }, []);
-
-  const persist = useCallback((next: AppState) => {
-    setSaveStatus("saving");
-    const stamped = { ...next, lastSavedAt: Date.now() };
-    saveAppState(stamped);
-    setStateInternal(stamped);
+    const loaded = loadAppState();
+    lastSavedJsonRef.current = contentJson(loaded);
+    setStateInternal(loaded);
     setSaveStatus("saved");
-  }, []);
+    setHydrated(true);
+  }, [contentJson]);
+
+  const persist = useCallback(
+    (next: AppState) => {
+      setSaveStatus("saving");
+      try {
+        const stamped = { ...next, lastSavedAt: Date.now() };
+        saveAppState(stamped);
+        lastSavedJsonRef.current = contentJson(stamped);
+        setStateInternal(stamped);
+        setSaveStatus("saved");
+      } catch (e) {
+        console.error("save failed", e);
+        setSaveStatus("error");
+      }
+    },
+    [contentJson],
+  );
 
   useEffect(() => {
     if (!hydrated) return;
+    const json = contentJson(state);
+    if (json === lastSavedJsonRef.current) return; // no real change
     setSaveStatus("saving");
     if (debounceRef.current) window.clearTimeout(debounceRef.current);
     debounceRef.current = window.setTimeout(() => {
-      const stamped = { ...state, lastSavedAt: Date.now() };
-      saveAppState(stamped);
-      setStateInternal((cur) =>
-        cur === state ? stamped : { ...cur, lastSavedAt: stamped.lastSavedAt },
-      );
-      setSaveStatus("saved");
+      try {
+        const stamped = { ...state, lastSavedAt: Date.now() };
+        saveAppState(stamped);
+        lastSavedJsonRef.current = json;
+        setStateInternal((cur) =>
+          cur === state ? stamped : { ...cur, lastSavedAt: stamped.lastSavedAt },
+        );
+        setSaveStatus("saved");
+      } catch (e) {
+        console.error("save failed", e);
+        setSaveStatus("error");
+      }
     }, 600);
     return () => {
       if (debounceRef.current) window.clearTimeout(debounceRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state, hydrated]);
+  }, [state, hydrated, contentJson]);
 
   const setState = useCallback(
     (updater: (s: AppState) => AppState) =>

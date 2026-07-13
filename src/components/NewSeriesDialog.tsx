@@ -89,7 +89,7 @@ export function NewSeriesDialog({ open, onOpenChange, onCreated, editSeries }: P
     setDefaultSubtitleStyle("");
   };
 
-  const canSubmit = title.trim() && defaultTone.trim() && defaultScreenStyle.trim();
+  const canSubmit = !!title.trim();
 
   const submit = () => {
     if (!canSubmit) return;
@@ -146,77 +146,81 @@ export function NewSeriesDialog({ open, onOpenChange, onCreated, editSeries }: P
               placeholder="예: 20대 자극 콘텐츠, 게임, ASMR, AI 시대"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
+              autoFocus
             />
           </div>
 
           <div className="grid gap-2">
-            <Label>간단한 설명</Label>
-            <Textarea
-              rows={2}
-              placeholder="이 노트북에서 어떤 쇼츠들이 나올 예정인지"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
+            <Label>기본 영상 길이 <span className="text-destructive">*</span></Label>
+            <div className="flex gap-2">
+              {(["30초", "60초"] as Length[]).map((l) => (
+                <button
+                  key={l}
+                  type="button"
+                  onClick={() => setDefaultLength(l)}
+                  className={`flex-1 rounded-md border px-3 py-2 text-sm ${
+                    defaultLength === l
+                      ? "border-primary bg-accent"
+                      : "border-border hover:bg-muted"
+                  }`}
+                >
+                  {l}
+                </button>
+              ))}
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              필수 항목은 이름과 길이 뿐. 나머지는 나중에 언제든 채워도 돼요.
+            </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div className="grid gap-2">
-              <Label>기본 영상 길이 <span className="text-destructive">*</span></Label>
-              <div className="flex gap-2">
-                {(["30초", "60초"] as Length[]).map((l) => (
+          <details className="rounded-lg border bg-muted/30 p-3" open={isEdit}>
+            <summary className="cursor-pointer text-xs font-semibold text-muted-foreground select-none">
+              ▸ 추가 설정 (설명 · 스타일 · 태그 · 포맷 · TTS · 자막)
+            </summary>
+
+            <div className="grid gap-2 mt-3">
+              <Label className="text-xs">간단한 설명</Label>
+              <Textarea
+                rows={2}
+                placeholder="이 노트북에서 어떤 쇼츠들이 나올 예정인지"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              />
+            </div>
+
+            <div className="grid gap-2 mt-3">
+              <Label className="text-xs">기본 제작 스타일 (톤)</Label>
+              <Input
+                className="h-8 text-xs"
+                placeholder="예: 빠르게 전달하지만 끝에는 생각하게 만드는 스타일"
+                value={defaultTone}
+                onChange={(e) => setDefaultTone(e.target.value)}
+              />
+            </div>
+
+            <div className="grid gap-2 mt-3">
+              <Label className="text-xs">기본 화면 스타일</Label>
+              <Input
+                className="h-8 text-xs"
+                placeholder="예: 자막 중심, AI 이미지 중심, 실사 B-roll 중심"
+                value={defaultScreenStyle}
+                onChange={(e) => setDefaultScreenStyle(e.target.value)}
+              />
+              <div className="flex flex-wrap gap-1.5">
+                {SCREEN_STYLE_SUGGESTIONS.map((s) => (
                   <button
-                    key={l}
+                    key={s}
                     type="button"
-                    onClick={() => setDefaultLength(l)}
-                    className={`flex-1 rounded-md border px-3 py-2 text-sm ${
-                      defaultLength === l
-                        ? "border-primary bg-accent"
-                        : "border-border hover:bg-muted"
-                    }`}
+                    onClick={() => setDefaultScreenStyle(s)}
+                    className="rounded-full border bg-card px-2.5 py-0.5 text-[11px] hover:bg-muted"
                   >
-                    {l}
+                    {s}
                   </button>
                 ))}
               </div>
             </div>
-          </div>
 
-          <div className="grid gap-2">
-            <Label>기본 제작 스타일 <span className="text-destructive">*</span></Label>
-            <Input
-              placeholder="예: 빠르게 전달하지만 끝에는 생각하게 만드는 스타일"
-              value={defaultTone}
-              onChange={(e) => setDefaultTone(e.target.value)}
-            />
-          </div>
-
-          <div className="grid gap-2">
-            <Label>기본 화면 스타일 <span className="text-destructive">*</span></Label>
-            <Input
-              placeholder="예: 자막 중심, AI 이미지 중심, 실사 B-roll 중심, ASMR/풍경 중심"
-              value={defaultScreenStyle}
-              onChange={(e) => setDefaultScreenStyle(e.target.value)}
-            />
-            <div className="flex flex-wrap gap-1.5">
-              {SCREEN_STYLE_SUGGESTIONS.map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => setDefaultScreenStyle(s)}
-                  className="rounded-full border bg-card px-2.5 py-0.5 text-[11px] hover:bg-muted"
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="rounded-lg border bg-muted/30 p-3">
-            <div className="text-xs font-semibold mb-1 text-muted-foreground">
-              선택 입력 (건너뛰어도 돼요)
-            </div>
-
-            <div className="grid gap-2 mt-2">
+            <div className="grid gap-2 mt-3">
               <Label className="text-xs">
                 태그 (최대 3개) · {tags.length}/3
               </Label>
@@ -263,12 +267,7 @@ export function NewSeriesDialog({ open, onOpenChange, onCreated, editSeries }: P
                   onChange={(e) => setCustomTag(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addCustomTag())}
                 />
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={addCustomTag}
-                >
+                <Button type="button" size="sm" variant="outline" onClick={addCustomTag}>
                   추가
                 </Button>
               </div>
@@ -309,11 +308,7 @@ export function NewSeriesDialog({ open, onOpenChange, onCreated, editSeries }: P
                 onChange={(e) => setDefaultSubtitleStyle(e.target.value)}
               />
             </div>
-          </div>
-
-          <p className="text-xs text-muted-foreground">
-            피하고 싶은 스타일은 마지막 <b>원본성/수익화 체크</b> 단계에서 다뤄요.
-          </p>
+          </details>
         </div>
 
         <DialogFooter>

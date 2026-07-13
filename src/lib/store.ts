@@ -134,6 +134,7 @@ export function createSeries(input: {
     defaultVoice: input.defaultVoice,
     defaultSubtitleStyle: input.defaultSubtitleStyle,
     subNotebooks: [],
+    trends: [],
     trendInbox: {
       keywords: "",
       emotions: "",
@@ -204,6 +205,7 @@ function migrateFromV2(v2: any): AppState {
     defaultTone: se.defaultTone ?? "",
     defaultScreenStyle: se.defaultScreenStyle ?? "",
     subNotebooks: [],
+    trends: [],
     trendInbox: se.trendInbox ?? {
       keywords: "",
       emotions: "",
@@ -326,6 +328,7 @@ function normalize(s: AppState): AppState {
       ...se,
       tags: se.tags ?? [],
       subNotebooks: se.subNotebooks ?? [],
+      trends: se.trends ?? [],
       contentLineIds: se.contentLineIds ?? [],
       trendInbox: se.trendInbox ?? {
         keywords: "",
@@ -352,11 +355,7 @@ function normalize(s: AppState): AppState {
 
 export function saveAppState(state: AppState) {
   if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(KEY, JSON.stringify(state));
-  } catch (e) {
-    console.error("save failed", e);
-  }
+  localStorage.setItem(KEY, JSON.stringify(state));
 }
 
 export function exportBackup(state: AppState): string {
