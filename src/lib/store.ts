@@ -352,11 +352,7 @@ function normalize(s: AppState): AppState {
 
 export function saveAppState(state: AppState) {
   if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(KEY, JSON.stringify(state));
-  } catch (e) {
-    console.error("save failed", e);
-  }
+  localStorage.setItem(KEY, JSON.stringify(state));
 }
 
 export function exportBackup(state: AppState): string {
