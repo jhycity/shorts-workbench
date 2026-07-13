@@ -147,6 +147,29 @@ export function ShortView({
         </div>
       </div>
 
+      {selectedTrends.length > 0 && (
+        <div className="mb-4 rounded-xl border bg-paper p-4">
+          <div className="text-xs font-semibold mb-2 text-muted-foreground">
+            📰 참고 트렌드 자료 · 주제/대본 생성 시 참고
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {selectedTrends.map((t) => (
+              <Badge
+                key={t.id}
+                variant="outline"
+                className="border-primary/40 bg-primary/5 gap-1"
+                title={t.note || undefined}
+              >
+                📰 {t.title}
+                {t.source && (
+                  <span className="text-muted-foreground">· {t.source}</span>
+                )}
+              </Badge>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="rounded-xl border bg-paper p-5 mb-6">
         <div className="flex items-center justify-between mb-2">
           <div className="text-sm font-medium">진행률</div>
