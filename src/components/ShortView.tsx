@@ -509,8 +509,18 @@ function SourceView({
   );
 }
 
-function materialLabel(m: Short["materials"][number], state: ReturnType<typeof useApp>["state"]) {
-  if (m.kind === "trend") return "📥 트렌드 입력";
+function materialLabel(
+  m: Short["materials"][number],
+  state: ReturnType<typeof useApp>["state"],
+  series?: Series,
+) {
+  if (m.kind === "trend") {
+    if (m.ref) {
+      const t = series?.trends?.find((x) => x.id === m.ref);
+      return `📰 ${t?.title ?? "트렌드"}`;
+    }
+    return "📥 트렌드 입력";
+  }
   if (m.kind === "idea") {
     const i = state.ideas.find((x) => x.id === m.ref);
     return `💡 ${i?.title ?? "아이디어"}`;
