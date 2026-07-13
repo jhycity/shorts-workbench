@@ -490,8 +490,18 @@ function SelectableCard({
   );
 }
 
-function materialLabel(m: Material, state: ReturnType<typeof useApp>["state"]) {
-  if (m.kind === "trend") return "📥 트렌드";
+function materialLabel(
+  m: Material,
+  state: ReturnType<typeof useApp>["state"],
+  series?: Series,
+) {
+  if (m.kind === "trend") {
+    if (m.ref) {
+      const t = series?.trends?.find((x) => x.id === m.ref);
+      return `📰 ${t?.title ?? "트렌드"}`;
+    }
+    return "📥 트렌드 입력";
+  }
   if (m.kind === "idea")
     return `💡 ${state.ideas.find((i) => i.id === m.ref)?.title ?? "아이디어"}`;
   if (m.kind === "format")
