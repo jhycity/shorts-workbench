@@ -328,6 +328,7 @@ function normalize(s: AppState): AppState {
       ...se,
       tags: se.tags ?? [],
       subNotebooks: se.subNotebooks ?? [],
+      trends: se.trends ?? [],
       contentLineIds: se.contentLineIds ?? [],
       trendInbox: se.trendInbox ?? {
         keywords: "",
