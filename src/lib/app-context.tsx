@@ -29,7 +29,7 @@ import {
 import { uid } from "./presets";
 
 
-export type SaveStatus = "idle" | "saving" | "saved";
+export type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 interface Ctx {
   state: AppState;
