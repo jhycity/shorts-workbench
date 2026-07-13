@@ -134,6 +134,7 @@ export function createSeries(input: {
     defaultVoice: input.defaultVoice,
     defaultSubtitleStyle: input.defaultSubtitleStyle,
     subNotebooks: [],
+    trends: [],
     trendInbox: {
       keywords: "",
       emotions: "",
