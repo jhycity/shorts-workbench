@@ -171,6 +171,10 @@ export function NewShortDialog({
   const selectedCustoms = materials
     .filter((m) => m.kind === "custom")
     .map((m) => m.note ?? "직접 입력");
+  const seriesTrends = series.trends ?? [];
+  const selectedTrendItems = materials
+    .filter((m) => m.kind === "trend" && m.ref)
+    .map((m) => seriesTrends.find((t) => t.id === m.ref)?.title ?? "트렌드");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
