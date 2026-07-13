@@ -90,16 +90,16 @@ export function NewShortDialog({
   );
   const availableFormats = state.formats;
 
-  const isTrendSelected = materials.some((m) => m.kind === "trend");
+  const isTrendInboxSelected = materials.some((m) => m.kind === "trend" && !m.ref);
   const isRefSelected = (ref: string) => materials.some((m) => m.ref === ref);
   const isCustomSelected = (note: string) =>
     materials.some((m) => m.kind === "custom" && m.note === note);
 
   const toggleMaterial = (m: Omit<Material, "id">) => {
     setMaterials((cur) => {
-      // deselect trend
-      if (m.kind === "trend") {
-        const exists = cur.find((c) => c.kind === "trend");
+      // trend inbox (no ref)
+      if (m.kind === "trend" && !m.ref) {
+        const exists = cur.find((c) => c.kind === "trend" && !c.ref);
         if (exists) return cur.filter((c) => c.id !== exists.id);
         if (cur.length >= MAX_MATERIALS) {
           toast.warning("조합이 너무 많으면 결과가 흐려질 수 있어요. 핵심 재료 3개까지만 선택하세요.");
