@@ -256,7 +256,7 @@ export function NewShortDialog({
                   onClick={() => removeMaterial(m.id)}
                   title="클릭하여 제거"
                 >
-                  <Check className="size-3" /> {materialLabel(m, state)} ×
+                  <Check className="size-3" /> {materialLabel(m, state, series)} ×
                 </Badge>
               ))}
             </div>
