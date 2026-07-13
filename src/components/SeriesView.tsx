@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useApp } from "@/lib/app-context";
-import type { Series, Short } from "@/lib/types";
+import type { Series, Short, TrendItem } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
