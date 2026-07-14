@@ -343,35 +343,25 @@ export function SeriesView({
             아직 저장된 트렌드가 없어요. 최근 관찰한 소재를 짧게 남겨두면 쇼츠 만들 때 재료로 골라 쓸 수 있어요.
           </p>
         ) : (
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {(series.trends ?? []).map((tr) => (
-              <div
-                key={tr.id}
-                className="group rounded-lg border bg-card p-3"
-              >
-                <div className="flex items-start justify-between gap-2">
+          <div className="flex flex-col gap-1.5">
+            {(series.trends ?? []).map((tr) => {
+              const extra = [
+                tr.source && `출처: ${tr.source}`,
+                tr.tags.length > 0 && tr.tags.map((t) => `#${t}`).join(" "),
+                tr.note,
+              ]
+                .filter(Boolean)
+                .join(" · ");
+              return (
+                <div
+                  key={tr.id}
+                  className="group flex items-center justify-between gap-2 rounded-lg border bg-card px-3 py-2"
+                >
                   <div className="min-w-0 flex-1">
-                    <div className="font-medium text-sm truncate">{tr.title}</div>
-                    {tr.source && (
-                      <div className="text-[11px] text-muted-foreground mt-0.5">
-                        출처: {tr.source}
-                      </div>
-                    )}
-                    {tr.tags.length > 0 && (
-                      <div className="mt-1 flex flex-wrap gap-1">
-                        {tr.tags.map((tg) => (
-                          <span
-                            key={tg}
-                            className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
-                          >
-                            #{tg}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    {tr.note && (
-                      <div className="text-[11px] text-muted-foreground mt-1 line-clamp-2">
-                        {tr.note}
+                    <div className="text-sm truncate">{tr.title}</div>
+                    {extra && (
+                      <div className="text-[11px] text-muted-foreground truncate mt-0.5">
+                        {extra}
                       </div>
                     )}
                   </div>
@@ -383,17 +373,18 @@ export function SeriesView({
                         trends: (s.trends ?? []).filter((x) => x.id !== tr.id),
                       }));
                     }}
-                    className="opacity-0 group-hover:opacity-100 transition text-muted-foreground hover:text-destructive"
+                    className="opacity-60 group-hover:opacity-100 transition text-muted-foreground hover:text-destructive shrink-0"
                     title="삭제"
                   >
                     <Trash2 className="size-4" />
                   </button>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
+
 
 
 
