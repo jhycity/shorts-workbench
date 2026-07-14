@@ -285,46 +285,21 @@ export function SeriesView({
           </span>
         </div>
 
-        <div className="grid gap-2 sm:grid-cols-2 mb-3">
+        <div className="flex gap-2 mb-3">
           <Input
-            className="h-8 text-sm"
-            placeholder="제목 (예: 발로란트 신챔 티어)"
+            className="h-9 text-sm flex-1"
+            placeholder="예: 30대가 20대로 돌아간다면 가장 먼저 고칠 습관"
             value={trendDraft.title}
             onChange={(e) => setTrendDraft({ ...trendDraft, title: e.target.value })}
-          />
-          <Input
-            className="h-8 text-sm"
-            placeholder="출처 / 플랫폼 (예: YouTube, X, 커뮤니티)"
-            value={trendDraft.source}
-            onChange={(e) => setTrendDraft({ ...trendDraft, source: e.target.value })}
-          />
-          <Input
-            className="h-8 text-sm"
-            placeholder="태그 (콤마로 구분, 예: fps, 신챔)"
-            value={trendDraft.tags}
-            onChange={(e) => setTrendDraft({ ...trendDraft, tags: e.target.value })}
-          />
-          <div className="flex gap-2">
-            <Input
-              className="h-8 text-sm"
-              placeholder="짧은 메모"
-              value={trendDraft.note}
-              onChange={(e) => setTrendDraft({ ...trendDraft, note: e.target.value })}
-            />
-            <Button
-              size="sm"
-              onClick={() => {
-                const t = trendDraft.title.trim();
-                if (!t) return;
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && trendDraft.title.trim()) {
+                e.preventDefault();
                 const item: TrendItem = {
                   id: uid(),
-                  title: t,
-                  source: trendDraft.source.trim(),
-                  tags: trendDraft.tags
-                    .split(",")
-                    .map((s) => s.trim())
-                    .filter(Boolean),
-                  note: trendDraft.note.trim(),
+                  title: trendDraft.title.trim(),
+                  source: "",
+                  tags: [],
+                  note: "",
                   createdAt: Date.now(),
                 };
                 updateSeries(series.id, (s) => ({
@@ -333,13 +308,35 @@ export function SeriesView({
                 }));
                 setTrendDraft({ title: "", source: "", tags: "", note: "" });
                 toast.success("트렌드를 저장했어요");
-              }}
-              disabled={!trendDraft.title.trim()}
-            >
-              추가
-            </Button>
-          </div>
+              }
+            }}
+          />
+          <Button
+            size="sm"
+            onClick={() => {
+              const t = trendDraft.title.trim();
+              if (!t) return;
+              const item: TrendItem = {
+                id: uid(),
+                title: t,
+                source: "",
+                tags: [],
+                note: "",
+                createdAt: Date.now(),
+              };
+              updateSeries(series.id, (s) => ({
+                ...s,
+                trends: [item, ...(s.trends ?? [])],
+              }));
+              setTrendDraft({ title: "", source: "", tags: "", note: "" });
+              toast.success("트렌드를 저장했어요");
+            }}
+            disabled={!trendDraft.title.trim()}
+          >
+            추가
+          </Button>
         </div>
+
 
         {(series.trends ?? []).length === 0 ? (
           <p className="text-xs text-muted-foreground">
