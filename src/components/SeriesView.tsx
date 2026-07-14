@@ -285,46 +285,21 @@ export function SeriesView({
           </span>
         </div>
 
-        <div className="grid gap-2 sm:grid-cols-2 mb-3">
+        <div className="flex gap-2 mb-3">
           <Input
-            className="h-8 text-sm"
-            placeholder="제목 (예: 발로란트 신챔 티어)"
+            className="h-9 text-sm flex-1"
+            placeholder="예: 30대가 20대로 돌아간다면 가장 먼저 고칠 습관"
             value={trendDraft.title}
             onChange={(e) => setTrendDraft({ ...trendDraft, title: e.target.value })}
-          />
-          <Input
-            className="h-8 text-sm"
-            placeholder="출처 / 플랫폼 (예: YouTube, X, 커뮤니티)"
-            value={trendDraft.source}
-            onChange={(e) => setTrendDraft({ ...trendDraft, source: e.target.value })}
-          />
-          <Input
-            className="h-8 text-sm"
-            placeholder="태그 (콤마로 구분, 예: fps, 신챔)"
-            value={trendDraft.tags}
-            onChange={(e) => setTrendDraft({ ...trendDraft, tags: e.target.value })}
-          />
-          <div className="flex gap-2">
-            <Input
-              className="h-8 text-sm"
-              placeholder="짧은 메모"
-              value={trendDraft.note}
-              onChange={(e) => setTrendDraft({ ...trendDraft, note: e.target.value })}
-            />
-            <Button
-              size="sm"
-              onClick={() => {
-                const t = trendDraft.title.trim();
-                if (!t) return;
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && trendDraft.title.trim()) {
+                e.preventDefault();
                 const item: TrendItem = {
                   id: uid(),
-                  title: t,
-                  source: trendDraft.source.trim(),
-                  tags: trendDraft.tags
-                    .split(",")
-                    .map((s) => s.trim())
-                    .filter(Boolean),
-                  note: trendDraft.note.trim(),
+                  title: trendDraft.title.trim(),
+                  source: "",
+                  tags: [],
+                  note: "",
                   createdAt: Date.now(),
                 };
                 updateSeries(series.id, (s) => ({
@@ -333,48 +308,60 @@ export function SeriesView({
                 }));
                 setTrendDraft({ title: "", source: "", tags: "", note: "" });
                 toast.success("트렌드를 저장했어요");
-              }}
-              disabled={!trendDraft.title.trim()}
-            >
-              추가
-            </Button>
-          </div>
+              }
+            }}
+          />
+          <Button
+            size="sm"
+            onClick={() => {
+              const t = trendDraft.title.trim();
+              if (!t) return;
+              const item: TrendItem = {
+                id: uid(),
+                title: t,
+                source: "",
+                tags: [],
+                note: "",
+                createdAt: Date.now(),
+              };
+              updateSeries(series.id, (s) => ({
+                ...s,
+                trends: [item, ...(s.trends ?? [])],
+              }));
+              setTrendDraft({ title: "", source: "", tags: "", note: "" });
+              toast.success("트렌드를 저장했어요");
+            }}
+            disabled={!trendDraft.title.trim()}
+          >
+            추가
+          </Button>
         </div>
+
 
         {(series.trends ?? []).length === 0 ? (
           <p className="text-xs text-muted-foreground">
             아직 저장된 트렌드가 없어요. 최근 관찰한 소재를 짧게 남겨두면 쇼츠 만들 때 재료로 골라 쓸 수 있어요.
           </p>
         ) : (
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {(series.trends ?? []).map((tr) => (
-              <div
-                key={tr.id}
-                className="group rounded-lg border bg-card p-3"
-              >
-                <div className="flex items-start justify-between gap-2">
+          <div className="flex flex-col gap-1.5">
+            {(series.trends ?? []).map((tr) => {
+              const extra = [
+                tr.source && `출처: ${tr.source}`,
+                tr.tags.length > 0 && tr.tags.map((t) => `#${t}`).join(" "),
+                tr.note,
+              ]
+                .filter(Boolean)
+                .join(" · ");
+              return (
+                <div
+                  key={tr.id}
+                  className="group flex items-center justify-between gap-2 rounded-lg border bg-card px-3 py-2"
+                >
                   <div className="min-w-0 flex-1">
-                    <div className="font-medium text-sm truncate">{tr.title}</div>
-                    {tr.source && (
-                      <div className="text-[11px] text-muted-foreground mt-0.5">
-                        출처: {tr.source}
-                      </div>
-                    )}
-                    {tr.tags.length > 0 && (
-                      <div className="mt-1 flex flex-wrap gap-1">
-                        {tr.tags.map((tg) => (
-                          <span
-                            key={tg}
-                            className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
-                          >
-                            #{tg}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                    {tr.note && (
-                      <div className="text-[11px] text-muted-foreground mt-1 line-clamp-2">
-                        {tr.note}
+                    <div className="text-sm truncate">{tr.title}</div>
+                    {extra && (
+                      <div className="text-[11px] text-muted-foreground truncate mt-0.5">
+                        {extra}
                       </div>
                     )}
                   </div>
@@ -386,29 +373,30 @@ export function SeriesView({
                         trends: (s.trends ?? []).filter((x) => x.id !== tr.id),
                       }));
                     }}
-                    className="opacity-0 group-hover:opacity-100 transition text-muted-foreground hover:text-destructive"
+                    className="opacity-60 group-hover:opacity-100 transition text-muted-foreground hover:text-destructive shrink-0"
                     title="삭제"
                   >
                     <Trash2 className="size-4" />
                   </button>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
 
 
 
+
       <div className="grid gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-2 rounded-xl border bg-paper p-5">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-semibold">📥 트렌드 입력함</h2>
+        <details className="lg:col-span-2 rounded-xl border bg-paper p-5 group">
+          <summary className="flex items-center justify-between cursor-pointer list-none">
+            <h2 className="font-semibold">📝 상세 기획 메모 (선택)</h2>
             <span className="text-xs text-muted-foreground">
-              자동 저장됩니다
+              펼쳐서 작성 · 자동 저장
             </span>
-          </div>
-          <div className="grid gap-3">
+          </summary>
+          <div className="grid gap-3 mt-4">
             {(
               [
                 ["keywords", "요즘 자주 보이는 키워드"],
@@ -429,7 +417,8 @@ export function SeriesView({
               </div>
             ))}
           </div>
-        </div>
+        </details>
+
 
         <div className="space-y-4">
           <div className="rounded-xl border bg-paper p-4">
