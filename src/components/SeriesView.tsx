@@ -389,14 +389,14 @@ export function SeriesView({
 
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-2 rounded-xl border bg-paper p-5">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-semibold">📥 트렌드 입력함</h2>
+        <details className="lg:col-span-2 rounded-xl border bg-paper p-5 group">
+          <summary className="flex items-center justify-between cursor-pointer list-none">
+            <h2 className="font-semibold">📝 상세 기획 메모 (선택)</h2>
             <span className="text-xs text-muted-foreground">
-              자동 저장됩니다
+              펼쳐서 작성 · 자동 저장
             </span>
-          </div>
-          <div className="grid gap-3">
+          </summary>
+          <div className="grid gap-3 mt-4">
             {(
               [
                 ["keywords", "요즘 자주 보이는 키워드"],
@@ -417,7 +417,8 @@ export function SeriesView({
               </div>
             ))}
           </div>
-        </div>
+        </details>
+
 
         <div className="space-y-4">
           <div className="rounded-xl border bg-paper p-4">
